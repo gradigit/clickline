@@ -261,6 +261,16 @@ The statusline runs fresh on each poll — there is no persistent process. You c
 
 The spinner character changes each second because `date +%s` modulo 10 selects a different frame. Any `cache_ttl: 1` item re-evaluates every poll cycle.
 
+## `/clickline-custom` skill
+
+The installer copies a Claude Code skill to `~/.claude/skills/clickline-custom/`. Type `/clickline-custom` in Claude Code (or just ask to "add a statusline item") for an interactive walkthrough that:
+
+1. Shows your existing custom items (global and per-repo)
+2. Asks what kind of item: **service link**, **status indicator**, or **custom label**
+3. For service links, offers presets for Railway, Vercel, Netlify, Supabase, Neon, Render, and Fly.io
+4. Writes to the correct file (`.clickline` or `~/.claude/clickline-custom.json`)
+5. Adds `custom_<name>` to your LAYOUT automatically
+
 ## Config reference
 
 `~/.claude/clickline.conf` (created by installer, or copy from `clickline.conf.default`):
