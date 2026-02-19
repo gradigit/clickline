@@ -300,20 +300,20 @@ esac
 # ═══════════════════════════════════════════════════════════════════════════════
 # PALETTE — Catppuccin Mocha (24-bit true color)
 # ═══════════════════════════════════════════════════════════════════════════════
-RST='\033[0m'
-BOLD='\033[1m'
-ITALIC='\033[3m'
+RST=$'\033[0m'
+BOLD=$'\033[1m'
+ITALIC=$'\033[3m'
 
-c_label='\033[38;2;108;112;134m'    # #6c7086 Overlay0
-c_sep='\033[38;2;88;91;112m'        # #585b70 Surface2
-c_dim='\033[38;2;69;71;90m'         # #45475a Surface1
-c_sapphire='\033[38;2;116;199;236m' # #74c7ec Sapphire
-c_lavender='\033[38;2;180;190;254m' # #b4befe Lavender
-c_mauve='\033[38;2;203;166;247m'    # #cba6f7 Mauve
-c_gold='\033[38;2;249;226;175m'     # #f9e2af Yellow
-c_green='\033[38;2;166;227;161m'    # #a6e3a1 Green
-c_peach='\033[38;2;250;179;135m'    # #fab387 Peach
-c_red='\033[38;2;243;139;168m'      # #f38ba8 Red
+c_label=$'\033[38;2;108;112;134m'    # #6c7086 Overlay0
+c_sep=$'\033[38;2;88;91;112m'        # #585b70 Surface2
+c_dim=$'\033[38;2;69;71;90m'         # #45475a Surface1
+c_sapphire=$'\033[38;2;116;199;236m' # #74c7ec Sapphire
+c_lavender=$'\033[38;2;180;190;254m' # #b4befe Lavender
+c_mauve=$'\033[38;2;203;166;247m'    # #cba6f7 Mauve
+c_gold=$'\033[38;2;249;226;175m'     # #f9e2af Yellow
+c_green=$'\033[38;2;166;227;161m'    # #a6e3a1 Green
+c_peach=$'\033[38;2;250;179;135m'    # #fab387 Peach
+c_red=$'\033[38;2;243;139;168m'      # #f38ba8 Red
 
 status_color() {
   local pct=$1

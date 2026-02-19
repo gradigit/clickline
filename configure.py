@@ -339,12 +339,12 @@ class LayoutEditor(Static, can_focus=True):
     BINDINGS: ClassVar = [
         Binding("up,k",            "move_cursor(-1)",    "Up",        show=False),
         Binding("down,j",          "move_cursor(1)",     "Down",      show=False),
-        Binding("shift+up,K",      "reorder(-1)",        "⇧↑ Move",  show=True),
-        Binding("shift+down,J",    "reorder(1)",         "⇧↓ Move",  show=True),
-        Binding("left_square_bracket",  "cross_line(-1)", "[ Line",   show=True),
-        Binding("right_square_bracket", "cross_line(1)",  "] Line",   show=True),
-        Binding("n",             "insert_linebreak",   "Break",      show=True),
-        Binding("d,delete",      "remove_item",        "Del",        show=True),
+        Binding("shift+up,K",      "reorder(-1)",        "Shift+Up Move up",   show=True),
+        Binding("shift+down,J",    "reorder(1)",         "Shift+Down Move down", show=True),
+        Binding("left_square_bracket",  "cross_line(-1)", "[ Prev line", show=True),
+        Binding("right_square_bracket", "cross_line(1)",  "] Next line", show=True),
+        Binding("n",             "insert_linebreak",   "n Line break",  show=True),
+        Binding("d,delete",      "remove_item",        "d Remove",      show=True),
     ]
 
     class Changed(Message):
@@ -683,7 +683,7 @@ class ClicklineApp(App[None]):
         border-bottom: solid #2a2a2a;
     }
     #preview-label {
-        color: #444444;
+        color: #555555;
         margin-bottom: 0;
     }
     #preview-text {
@@ -705,7 +705,7 @@ class ClicklineApp(App[None]):
         overflow-y: auto;
     }
     #editor-label {
-        color: #555555;
+        color: #666666;
         margin-bottom: 1;
     }
     #editor-widget {
@@ -720,7 +720,7 @@ class ClicklineApp(App[None]):
         padding: 1 1;
     }
     #library-label {
-        color: #555555;
+        color: #666666;
         margin-bottom: 1;
     }
 
@@ -753,15 +753,15 @@ class ClicklineApp(App[None]):
     """
 
     BINDINGS: ClassVar = [
-        Binding("s",      "save",           "Save"),
-        Binding("q",      "quit",           "Quit"),
+        Binding("s",      "save",           "s Save"),
+        Binding("q",      "quit",           "q Quit"),
         Binding("ctrl+s", "save",           "Save",    show=False),
-        Binding("o",      "toggle_options", "Options"),
-        Binding("c",      "add_custom",     "Custom"),
-        Binding("tab",    "focus_next",     show=False),
+        Binding("o",      "toggle_options", "o Options"),
+        Binding("c",      "add_custom",     "c Custom element"),
+        Binding("tab",    "focus_next",     "Tab Switch pane", show=True),
         Binding("shift+tab", "focus_previous", show=False),
         Binding("escape", "cancel_dialog",  show=False),
-        Binding("question_mark", "help",    "?Help"),
+        Binding("question_mark", "help",    "? All shortcuts"),
     ]
 
     def __init__(self, cfg: Config) -> None:
@@ -777,7 +777,7 @@ class ClicklineApp(App[None]):
 
         # ── Preview bar (full width, top) ────────────────────────────────
         with Container(id="preview-bar"):
-            yield Label("PREVIEW", id="preview-label")
+            yield Label("LIVE PREVIEW — updates as you edit", id="preview-label")
             yield Static(build_preview(self.cfg), id="preview-text")
 
         # ── Two-pane editor area ─────────────────────────────────────────
@@ -785,14 +785,14 @@ class ClicklineApp(App[None]):
 
             # Left: layout editor (wider)
             with ScrollableContainer(id="pane-editor"):
-                yield Label("LAYOUT", id="editor-label")
+                yield Label("LAYOUT ORDER — arrow keys to move, Shift+arrows to reorder", id="editor-label")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
 
             # Right: element library (narrower)
             with Vertical(id="pane-library"):
-                yield Label("ELEMENTS", id="library-label")
+                yield Label("TOGGLE ON/OFF — Space to toggle", id="library-label")
                 yield self._build_library()
-                yield Button("+ Custom", id="btn-add-custom")
+                yield Button("+ Custom element", id="btn-add-custom")
 
         yield Footer()
 
@@ -814,8 +814,15 @@ class ClicklineApp(App[None]):
     def on_mount(self) -> None:
         self.query_one("#options-panel", OptionsPanel).load(self.cfg)
         self.query_one("#editor-widget", LayoutEditor).focus()
-        self.title = "clickline"
+        self.title = "clickline configurator"
         self.sub_title = str(CONF_PATH)
+        self.notify(
+            "Use arrow keys to navigate, Shift+arrows to reorder.\n"
+            "Tab to switch panes, Space to toggle elements.\n"
+            "Press s to save, q to quit.",
+            title="Welcome",
+            timeout=8,
+        )
 
     # ── react to layout changes ──────────────────────────────────────────
     @on(LayoutEditor.Changed)
