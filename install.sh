@@ -188,6 +188,7 @@ load_conf() {
   SHOW_CONTEXT=${SHOW_CONTEXT:-true}
   SHOW_QUOTA=${SHOW_QUOTA:-true}
   SHOW_COST=${SHOW_COST:-true}
+  LEADING_NEWLINE=${LEADING_NEWLINE:-false}
   BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS:-25}
   PATH_SEGMENTS=${PATH_SEGMENTS:-2}
   PATH_LINK_TARGET=${PATH_LINK_TARGET:-finder}
@@ -228,6 +229,7 @@ select_features() {
     $'SHOW_CONTEXT\tContext window percentage'
     $'SHOW_QUOTA\tQuota (5h + 7d usage)'
     $'SHOW_COST\tSession cost → transcript'
+    $'LEADING_NEWLINE\tBlank line before statusline'
   )
 
   if [ "$fzf_ok" = "true" ]; then
@@ -341,6 +343,7 @@ SHOW_VERSION=${SHOW_VERSION}
 SHOW_CONTEXT=${SHOW_CONTEXT}
 SHOW_QUOTA=${SHOW_QUOTA}
 SHOW_COST=${SHOW_COST}
+LEADING_NEWLINE=${LEADING_NEWLINE}
 
 # ── Options ───────────────────────────────────────────────────────────────────
 BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS}

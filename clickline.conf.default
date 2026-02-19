@@ -14,6 +14,7 @@ SHOW_VERSION=false       # Claude Code version → GitHub releases
 SHOW_CONTEXT=true        # context window percentage + max size
 SHOW_QUOTA=true          # 5h and 7d usage with time-until-reset
 SHOW_COST=true           # session cost → transcript file
+LEADING_NEWLINE=false    # blank line before the statusline
 
 # ── Options ───────────────────────────────────────────────────────────────────
 BRANCH_MAX_CHARS=25      # truncate branch names longer than this (appends …)

@@ -338,6 +338,9 @@ exec 2>/dev/null
 # Cache cleanup (non-blocking, removes files older than 7 days)
 find /tmp -name '.clickline-*' -mtime +7 -delete 2>/dev/null &
 
+# Leading blank line
+[ "${LEADING_NEWLINE:-false}" = "true" ] && printf '\n'
+
 # ── CI symbol derivation ──────────────────────────────────────────────────────
 ci_symbol=""
 if [ -n "$ci_status" ]; then
