@@ -244,23 +244,6 @@ Adjacent custom items render with dot separators (` · `) instead of pipe separa
 }
 ```
 
-**Pseudo-animated spinner:**
-
-The statusline runs fresh on each poll — there is no persistent process. You can create a pseudo-animation using epoch modular arithmetic with `cache_ttl: 1`:
-
-```json
-{
-  "spinner": {
-    "cmd": "printf '%s' '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' | fold -w1 | sed -n \"$(($(date +%s) % 10 + 1))p\"",
-    "color": "lavender",
-    "label": "spin",
-    "cache_ttl": 1
-  }
-}
-```
-
-The spinner character changes each second because `date +%s` modulo 10 selects a different frame. Any `cache_ttl: 1` item re-evaluates every poll cycle.
-
 ## `/clickline-custom` skill
 
 The installer copies a Claude Code skill to `~/.claude/skills/clickline-custom/`. Type `/clickline-custom` in Claude Code (or just ask to "add a statusline item") for an interactive walkthrough that:
