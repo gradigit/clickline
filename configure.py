@@ -5,15 +5,19 @@ Usage:
     python3 configure.py
     python3 configure.py --save-and-exit   # headless save of defaults
 
-Layout (3-pane):
-    ┌─ Elements ──┬─── Layout ─────────────────┬─ Preview ────────┐
-    │ ◉ path      │  path                       │ Line 1:          │
-    │ ◉ branch    │  branch                     │ ~/src · main·2   │
-    │ ◉ model     │  model                      │                  │
-    │ ○ version   │ ── line break ──            │ Line 2:          │
-    │ ◉ context   │  context                    │ 45%/200K │ 82%   │
-    │             │  quota                      │                  │
-    └─────────────┴────────────────────────────┴──────────────────┘
+Layout:
+    ┌──────────────────────────────────────────────────────────────┐
+    │  ~/project/src · main·3 ↑1 │ #42 │ ✓ │ Sonnet 4.6          │
+    │  45%/200K │ 82% · 45% │ $4                                   │
+    ├───── Layout ──────────────────────┬──── Elements ────────────┤
+    │  ▶ Path                           │  ☑ Path                  │
+    │    Branch                         │  ☑ Branch                │
+    │    PR link  [gh]                  │  ☐ Commit                │
+    │  ── line break ──                 │  ☑ Model                 │
+    │    Context %                      │  ...                     │
+    ├───────────────────────────────────┴──────────────────────────┤
+    │  s Save  q Quit  ⇧↑↓ Move  n Break  d Del  [ ] Line  ? Help│
+    └──────────────────────────────────────────────────────────────┘
 """
 from __future__ import annotations
 
@@ -235,10 +239,10 @@ class Config:
 
 # ── Preview renderer ──────────────────────────────────────────────────────────
 def build_preview(cfg: Config) -> Text:
-    """Build a Rich Text preview of the statusline layout with sample data."""
+    """Build a Rich Text preview that looks like the real statusline bar."""
     P = PALETTE
-    sep   = Text(" │ ", style=P["sep"])
-    dot   = Text(" · ", style=P["sep"])
+    sep   = Text(" │ ", style=P["surface2"])
+    dot   = Text(" · ", style=P["surface2"])
     lines_of_text: list[Text] = []
     current: Text = Text()
     first_on_line = True
@@ -260,12 +264,12 @@ def build_preview(cfg: Config) -> Text:
 
     def elem_enabled(name: str) -> bool:
         if name not in BY_NAME:
-            return True  # custom items always enabled if in layout
+            return True
         e = BY_NAME[name]
         if e.show_var and not cfg.show_flags.get(e.show_var, True):
             return False
         if e.conditional:
-            return False  # hide conditional-only items (vim, agent) in preview
+            return False
         return True
 
     for tok in cfg.layout:
@@ -291,7 +295,7 @@ def build_preview(cfg: Config) -> Text:
 
         if tok == "context":
             current.append(val.split("/")[0], style=f"bold {P['gold']}")
-            current.append("/" + val.split("/")[1] if "/" in val else "", style=P["dim"])
+            current.append("/" + val.split("/")[1] if "/" in val else "", style=P["surface2"])
         elif tok == "quota":
             parts = val.split(" · ")
             current.append(parts[0], style=f"bold {P['green']}")
@@ -312,11 +316,14 @@ def build_preview(cfg: Config) -> Text:
 
     lines_of_text.append(current)
 
+    # Render as bare statusline text — no "Line N:" labels.
+    # Each line gets a leading space for padding, just like the real statusline.
     result = Text()
     for i, lt in enumerate(lines_of_text):
-        result.append(f"Line {i + 1}:  ", style=P["label"])
+        if i > 0:
+            result.append("\n")
+        result.append(" ", style=P["base"])
         result.append_text(lt)
-        result.append("\n")
     return result
 
 # ── LayoutEditor widget ───────────────────────────────────────────────────────
@@ -324,14 +331,14 @@ class LayoutEditor(Static, can_focus=True):
     """Keyboard-driven reorderable list with line-break management."""
 
     BINDINGS: ClassVar = [
-        Binding("up,k",            "move_cursor(-1)",    "Up",         show=False),
-        Binding("down,j",          "move_cursor(1)",     "Down",       show=False),
-        Binding("shift+up,K",      "reorder(-1)",        "Move up",    show=False),
-        Binding("shift+down,J",    "reorder(1)",         "Move down",  show=False),
-        Binding("left_square_bracket",  "cross_line(-1)", "Prev line",  show=False),
-        Binding("right_square_bracket", "cross_line(1)",  "Next line",  show=False),
-        Binding("n",             "insert_linebreak",   "Linebreak",  show=False),
-        Binding("d,delete",      "remove_item",        "Remove",     show=False),
+        Binding("up,k",            "move_cursor(-1)",    "Up",        show=False),
+        Binding("down,j",          "move_cursor(1)",     "Down",      show=False),
+        Binding("shift+up,K",      "reorder(-1)",        "⇧↑ Move",  show=True),
+        Binding("shift+down,J",    "reorder(1)",         "⇧↓ Move",  show=True),
+        Binding("left_square_bracket",  "cross_line(-1)", "[ Line",   show=True),
+        Binding("right_square_bracket", "cross_line(1)",  "] Line",   show=True),
+        Binding("n",             "insert_linebreak",   "Break",      show=True),
+        Binding("d,delete",      "remove_item",        "Del",        show=True),
     ]
 
     class Changed(Message):
@@ -657,24 +664,63 @@ class ClicklineApp(App[None]):
         color: #a6adc8;
     }
 
-    /* ── 3-pane horizontal split ── */
+    /* ── Preview bar (top, full width) ── */
+    #preview-bar {
+        height: auto;
+        max-height: 6;
+        background: #11111b;
+        padding: 1 2;
+        border-bottom: solid #313244;
+    }
+    #preview-label {
+        color: #45475a;
+        text-style: bold;
+        margin-bottom: 0;
+    }
+    #preview-text {
+        color: #cdd6f4;
+    }
+
+    /* ── Two-pane editor area ── */
     #main-row {
         height: 1fr;
         layout: horizontal;
     }
 
-    /* ── Library pane (left) ── */
+    /* ── Layout editor (left, wider) ── */
+    #pane-editor {
+        width: 1fr;
+        background: #1e1e2e;
+        border-right: solid #313244;
+        padding: 1 2;
+        overflow-y: auto;
+    }
+    #pane-editor:focus-within {
+        border-right: solid #45475a;
+    }
+    #editor-label {
+        color: #6c7086;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #editor-widget {
+        height: auto;
+    }
+    #editor-widget:focus {
+        background: #1e1e2e;
+    }
+
+    /* ── Element library (right, narrower) ── */
     #pane-library {
-        width: 28;
-        min-width: 22;
+        width: 30;
+        min-width: 24;
         background: #181825;
-        border-right: tall #45475a;
-        padding: 0 1;
+        padding: 1 1;
     }
     #pane-library:focus-within {
-        border-right: tall #cba6f7 40%;
+        background: #181825;
     }
-    #pane-library > Label {
+    #library-label {
         color: #6c7086;
         text-style: bold;
         margin-bottom: 1;
@@ -692,54 +738,15 @@ class ClicklineApp(App[None]):
         color: #cdd6f4;
     }
 
-    /* ── Layout editor pane (center) ── */
-    #pane-editor {
-        width: 1fr;
-        background: #1e1e2e;
-        border-right: tall #45475a;
-        padding: 0 1;
-        overflow-y: auto;
-    }
-    #pane-editor:focus-within {
-        border-right: tall #cba6f7 40%;
-    }
-    #pane-editor > Label {
-        color: #6c7086;
-        margin-bottom: 1;
-    }
-    #editor-widget {
-        height: auto;
-    }
-    #editor-widget:focus {
-        background: #1e1e2e;
-    }
-
-    /* ── Preview pane (right) ── */
-    #pane-preview {
-        width: 38;
-        min-width: 30;
-        background: #181825;
-        padding: 1 2;
-    }
-    #pane-preview > Label {
-        color: #6c7086;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #preview-text {
-        color: #cdd6f4;
-        padding: 1 0;
-    }
-
     /* ── Custom item button ── */
     #btn-add-custom {
         margin-top: 1;
         width: 100%;
         background: #313244;
         color: #cba6f7;
-        text-style: bold;
-        border: tall #45475a;
-        min-height: 3;
+        border: none;
+        min-height: 1;
+        height: 1;
     }
     #btn-add-custom:hover {
         background: #45475a;
@@ -747,36 +754,19 @@ class ClicklineApp(App[None]):
     }
     #btn-add-custom:focus {
         background: #45475a;
-        border: tall #cba6f7;
-    }
-
-    /* ── Status bar ── */
-    #status-bar {
-        height: 1;
-        background: #11111b;
-        color: #585b70;
-        padding: 0 2;
-        dock: bottom;
-    }
-    #status-bar.saved {
-        color: #a6e3a1;
-        text-style: bold;
-    }
-    #status-bar.warning {
-        color: #fab387;
     }
     """
 
     BINDINGS: ClassVar = [
         Binding("s",      "save",           "Save"),
         Binding("q",      "quit",           "Quit"),
-        Binding("ctrl+s", "save",           "Save",   show=False),
+        Binding("ctrl+s", "save",           "Save",    show=False),
         Binding("o",      "toggle_options", "Options"),
-        Binding("c",      "add_custom",     "Custom item"),
-        Binding("tab",    "focus_next",     "Next pane", show=False),
-        Binding("shift+tab", "focus_previous", "Prev pane", show=False),
-        Binding("escape", "cancel_dialog",  "Cancel",  show=False),
-        Binding("?",      "help",           "Help"),
+        Binding("c",      "add_custom",     "Custom"),
+        Binding("tab",    "focus_next",     show=False),
+        Binding("shift+tab", "focus_previous", show=False),
+        Binding("escape", "cancel_dialog",  show=False),
+        Binding("question_mark", "help",    "?Help"),
     ]
 
     def __init__(self, cfg: Config) -> None:
@@ -787,32 +777,28 @@ class ClicklineApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
 
-        # ── Options panel (hidden by default) ──────────────────────────────
-        opts = OptionsPanel(id="options-panel")
-        yield opts
+        # ── Options panel (hidden by default) ────────────────────────────
+        yield OptionsPanel(id="options-panel")
 
-        # ── 3-pane main row ───────────────────────────────────────────────
+        # ── Preview bar (full width, top) ────────────────────────────────
+        with Container(id="preview-bar"):
+            yield Label("PREVIEW", id="preview-label")
+            yield Static(build_preview(self.cfg), id="preview-text")
+
+        # ── Two-pane editor area ─────────────────────────────────────────
         with Horizontal(id="main-row"):
 
-            # Left: element library
-            with Vertical(id="pane-library"):
-                yield Label("Elements")
-                yield self._build_library()
-                yield Button("+ Custom item", id="btn-add-custom")
-
-            # Center: layout editor
+            # Left: layout editor (wider)
             with ScrollableContainer(id="pane-editor"):
-                yield Label("Layout  (⇧↑↓ reorder · [[/]] cross-line · [[n]] break · [[d]] remove)")
+                yield Label("LAYOUT", id="editor-label")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
 
-            # Right: live preview
-            with Vertical(id="pane-preview"):
-                yield Label("Preview")
-                yield Static(build_preview(self.cfg), id="preview-text")
+            # Right: element library (narrower)
+            with Vertical(id="pane-library"):
+                yield Label("ELEMENTS", id="library-label")
+                yield self._build_library()
+                yield Button("+ Custom", id="btn-add-custom")
 
-        # ── Status bar ─────────────────────────────────────────────────────
-        yield Static("Ready — [s] save  [q] quit  [o] options  [c] custom  [?] help",
-                     id="status-bar")
         yield Footer()
 
     def _build_library(self) -> SelectionList[str]:
@@ -820,30 +806,28 @@ class ClicklineApp(App[None]):
         selections: list[Selection] = []
         for e in BUILTINS:
             checked = e.name in in_layout
-            req = f" [{e.requires}]" if e.requires else ""
-            cond = " [when active]" if e.conditional else ""
+            req = f" [[{e.requires}]]" if e.requires else ""
+            cond = " [[conditional]]" if e.conditional else ""
             label = f"{e.label}{req}{cond}"
             selections.append(Selection(label, e.name, checked))
         for item in self.cfg.custom_items.values():
             checked = item.name in in_layout
-            selections.append(Selection(f"{item.label} [custom]", item.name, checked))
-        sl = SelectionList[str](*selections, id="library")
-        return sl
+            selections.append(Selection(f"{item.label} [[custom]]", item.name, checked))
+        return SelectionList[str](*selections, id="library")
 
-    # ── on_mount ───────────────────────────────────────────────────────────
+    # ── on_mount ────────────────────────────────────────────────────────
     def on_mount(self) -> None:
         self.query_one("#options-panel", OptionsPanel).load(self.cfg)
         self.query_one("#editor-widget", LayoutEditor).focus()
-        self.title = "clickline · statusline configuration"
+        self.title = "clickline"
         self.sub_title = str(CONF_PATH)
 
-    # ── react to layout changes ────────────────────────────────────────────
+    # ── react to layout changes ──────────────────────────────────────────
     @on(LayoutEditor.Changed)
     def _layout_changed(self, event: LayoutEditor.Changed) -> None:
         self.cfg.layout = event.layout
         self._sync_library_to_layout()
         self._refresh_preview()
-        self._set_status("Unsaved changes — [s] to save", "warning")
 
     def _sync_library_to_layout(self) -> None:
         """Keep library checkboxes in sync after layout editor changes."""
@@ -866,19 +850,17 @@ class ClicklineApp(App[None]):
             editor.remove_element(name)
         self.cfg.layout = editor.items
         self._refresh_preview()
-        self._set_status("Unsaved changes — [s] to save", "warning")
 
     def _refresh_preview(self) -> None:
         self.query_one("#preview-text", Static).update(build_preview(self.cfg))
 
-    # ── actions ────────────────────────────────────────────────────────────
+    # ── actions ──────────────────────────────────────────────────────────
     def action_save(self) -> None:
-        # Pull options into cfg before saving
         opts = self.query_one("#options-panel", OptionsPanel)
         if "visible" in opts.classes:
             opts.apply(self.cfg)
         self.cfg.save()
-        self._set_status(f"Saved → {CONF_PATH}", "saved")
+        self.notify(f"Saved to {CONF_PATH}", title="Config saved", timeout=3)
 
     def action_quit(self) -> None:
         self.exit()
@@ -888,7 +870,6 @@ class ClicklineApp(App[None]):
         opts.toggle_class("visible")
 
     def action_add_custom(self) -> None:
-        # Mount dialog into editor pane if not already open
         if self.query("#custom-dialog"):
             return
         dialog = CustomItemDialog(id="custom-dialog")
@@ -901,53 +882,37 @@ class ClicklineApp(App[None]):
         self.query_one("#editor-widget", LayoutEditor).focus()
 
     def action_help(self) -> None:
-        help_text = (
-            "clickline TUI keyboard reference\n"
-            "─────────────────────────────────\n"
-            "Tab / Shift+Tab  — switch focus between panes\n"
-            "Space            — toggle element in library\n"
-            "↑ / k            — move cursor up in layout\n"
-            "↓ / j            — move cursor down in layout\n"
-            "Shift+↑ / K      — reorder: move element up\n"
-            "Shift+↓ / J      — reorder: move element down\n"
-            "[                — move element to previous line\n"
-            "]                — move element to next line\n"
-            "n                — insert line break after cursor\n"
-            "d / Delete       — remove element from layout\n"
-            "o                — toggle options panel\n"
-            "c                — create custom item\n"
-            "s / ctrl+s       — save config\n"
-            "q                — quit\n"
+        self.notify(
+            "Tab / Shift+Tab  switch panes\n"
+            "Space            toggle in library\n"
+            "↑↓ / k j         cursor\n"
+            "Shift+↑↓ / K J   reorder element\n"
+            "[ ]              move across lines\n"
+            "n                insert line break\n"
+            "d / Delete       remove element\n"
+            "o                options panel\n"
+            "c                custom item\n"
+            "s                save\n"
+            "q                quit",
+            title="Keyboard shortcuts",
+            timeout=15,
         )
-        self._set_status(help_text.splitlines()[0], "")
-        self.notify(help_text, title="Keyboard shortcuts", timeout=15)
 
-    # ── custom item dialog handlers ───────────────────────────────────────
+    # ── custom item dialog handlers ──────────────────────────────────────
     @on(CustomItemDialog.Submitted)
     def _custom_submitted(self, event: CustomItemDialog.Submitted) -> None:
         item = event.item
         self.cfg.custom_items[item.name] = item
-        # Add to library
         lib = self.query_one("#library", SelectionList)
-        lib.add_option(Selection(f"{item.label} [custom]", item.name, True))
-        # Add to layout
+        lib.add_option(Selection(f"{item.label} [[custom]]", item.name, True))
         editor = self.query_one("#editor-widget", LayoutEditor)
         editor.add_element(item.name)
-        # Close dialog
         self.action_cancel_dialog()
-        self._set_status(f"Custom item '{item.name}' added — [s] to save", "warning")
+        self.notify(f"Added '{item.label}' — press s to save", timeout=5)
 
     @on(CustomItemDialog.Cancelled)
     def _custom_cancelled(self, _: CustomItemDialog.Cancelled) -> None:
         self.action_cancel_dialog()
-
-    # ── helpers ────────────────────────────────────────────────────────────
-    def _set_status(self, msg: str, cls: str = "") -> None:
-        bar = self.query_one("#status-bar", Static)
-        bar.update(msg)
-        bar.remove_class("saved", "warning")
-        if cls:
-            bar.add_class(cls)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
