@@ -826,7 +826,7 @@ class ClicklineApp(App[None]):
     /* ── Preview bar (top, full width) ── */
     #preview-bar {
         height: auto;
-        max-height: 12;
+        max-height: 16;
         background: #111111;
         padding: 0 1;
         border-bottom: solid #2a2a2a;
@@ -976,7 +976,7 @@ class ClicklineApp(App[None]):
 
             # Left: layout editor (wider)
             with ScrollableContainer(id="pane-editor"):
-                yield Label("LAYOUT  \u2502  \u2191\u2193 navigate  Shift+\u2191\u2193 reorder  [[ ]] switch line  n break  d delete", id="editor-label")
+                yield Label("LAYOUT  \u2502  \u2191\u2193 navigate  Shift+\u2191\u2193 reorder  n break  d delete", id="editor-label")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
 
             # Right: element library (narrower)
