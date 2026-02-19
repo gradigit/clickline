@@ -360,30 +360,34 @@ class LayoutEditor(Static, can_focus=True):
         text = Text()
         for i, tok in enumerate(self.items):
             focused = i == self.cursor
-            prefix = "▶ " if focused else "  "
+            prefix = "› " if focused else "  "
 
             if tok == LINEBREAK:
-                bar = "─" * 24
-                style = (f"bold {P['peach']}" if focused else P["dim"])
-                text.append(f"{prefix}{bar} ↵ line break {bar}\n", style=style)
+                bar = "─" * 20
+                style = (P["overlay0"] if focused else P["surface2"])
+                text.append(f"{prefix}{bar} line break {bar}\n", style=style)
             else:
                 if tok in BY_NAME:
                     e = BY_NAME[tok]
                     label = e.label
                     clr = P.get(e.color, P["text"])
-                    req = f"  [{e.requires}]" if e.requires else ""
+                    req = f"  {e.requires}" if e.requires else ""
                 else:
                     label = tok
-                    clr = P["mauve"]
-                    req = "  [custom]"
+                    clr = P["subtext0"]
+                    req = "  custom"
 
-                bg   = " on " + P["surface1"] if focused else ""
-                style = f"bold {clr}{bg}" if focused else clr
-                text.append(f"{prefix}", style=P["sep"] if not focused else "bold white")
-                text.append(f"{label}{req}\n", style=style)
+                if focused:
+                    text.append(prefix, style=P["text"])
+                    text.append(label, style=f"bold {clr}")
+                    text.append(f"{req}\n", style=P["overlay0"])
+                else:
+                    text.append(prefix, style=P["surface2"])
+                    text.append(label, style=clr)
+                    text.append(f"{req}\n", style=P["surface2"])
 
         if not self.items:
-            text.append("  (empty — add elements from the library)\n", style=P["dim"])
+            text.append("  (empty)\n", style=P["surface2"])
         return text
 
     # ── actions ────────────────────────────────────────────────────────────
@@ -492,37 +496,37 @@ class CustomItemDialog(Container):
     CustomItemDialog {
         height: auto;
         background: #181825;
-        border: tall #cba6f7 40%;
+        border: solid #45475a;
         padding: 1 2;
         margin: 1;
     }
     CustomItemDialog Label {
         margin-bottom: 0;
-        color: #a6adc8;
+        color: #6c7086;
     }
     CustomItemDialog Input {
         margin-bottom: 1;
         background: #313244;
         color: #cdd6f4;
-        border: tall #45475a;
+        border: solid #45475a;
     }
     CustomItemDialog Input:focus {
-        border: tall #cba6f7;
+        border: solid #585b70;
     }
     CustomItemDialog Button {
         margin-right: 1;
     }
     CustomItemDialog #ci-ok {
-        background: #cba6f7;
-        color: #1e1e2e;
+        background: #45475a;
+        color: #cdd6f4;
         border: none;
     }
     CustomItemDialog #ci-ok:hover {
-        background: #b4befe;
+        background: #585b70;
     }
     CustomItemDialog #ci-cancel {
         background: #313244;
-        color: #a6adc8;
+        color: #6c7086;
         border: none;
     }
     CustomItemDialog #ci-cancel:hover {
@@ -574,23 +578,23 @@ class OptionsPanel(Container):
     OptionsPanel {
         height: auto;
         background: #181825;
-        border: tall #45475a;
+        border: solid #313244;
         padding: 1 2;
         margin: 0 0 1 0;
         display: none;
     }
     OptionsPanel.visible { display: block; }
     OptionsPanel Label {
-        color: #a6adc8;
+        color: #6c7086;
     }
     OptionsPanel Input {
         width: 12;
         background: #313244;
         color: #cdd6f4;
-        border: tall #45475a;
+        border: solid #45475a;
     }
     OptionsPanel Input:focus {
-        border: tall #cba6f7;
+        border: solid #585b70;
     }
     OptionsPanel Horizontal {
         height: auto;
@@ -647,21 +651,21 @@ class ClicklineApp(App[None]):
 
     Header {
         background: #181825;
-        color: #cba6f7;
+        color: #a6adc8;
         dock: top;
         height: 1;
     }
 
     Footer {
         background: #181825;
-        color: #585b70;
+        color: #45475a;
     }
     Footer > .footer--key {
         background: #313244;
-        color: #cba6f7;
+        color: #bac2de;
     }
     Footer > .footer--description {
-        color: #a6adc8;
+        color: #6c7086;
     }
 
     /* ── Preview bar (top, full width) ── */
@@ -674,7 +678,6 @@ class ClicklineApp(App[None]):
     }
     #preview-label {
         color: #45475a;
-        text-style: bold;
         margin-bottom: 0;
     }
     #preview-text {
@@ -695,19 +698,12 @@ class ClicklineApp(App[None]):
         padding: 1 2;
         overflow-y: auto;
     }
-    #pane-editor:focus-within {
-        border-right: solid #45475a;
-    }
     #editor-label {
-        color: #6c7086;
-        text-style: bold;
+        color: #585b70;
         margin-bottom: 1;
     }
     #editor-widget {
         height: auto;
-    }
-    #editor-widget:focus {
-        background: #1e1e2e;
     }
 
     /* ── Element library (right, narrower) ── */
@@ -717,12 +713,8 @@ class ClicklineApp(App[None]):
         background: #181825;
         padding: 1 1;
     }
-    #pane-library:focus-within {
-        background: #181825;
-    }
     #library-label {
-        color: #6c7086;
-        text-style: bold;
+        color: #585b70;
         margin-bottom: 1;
     }
 
@@ -734,23 +726,20 @@ class ClicklineApp(App[None]):
     SelectionList:focus {
         border: none;
     }
-    SelectionList > .selection-list--button {
-        color: #cdd6f4;
-    }
 
     /* ── Custom item button ── */
     #btn-add-custom {
         margin-top: 1;
         width: 100%;
         background: #313244;
-        color: #cba6f7;
+        color: #6c7086;
         border: none;
         min-height: 1;
         height: 1;
     }
     #btn-add-custom:hover {
         background: #45475a;
-        color: #b4befe;
+        color: #a6adc8;
     }
     #btn-add-custom:focus {
         background: #45475a;
