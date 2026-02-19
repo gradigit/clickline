@@ -802,7 +802,7 @@ class ClicklineApp(App[None]):
 
             # Center: layout editor
             with ScrollableContainer(id="pane-editor"):
-                yield Label("Layout  (⇧↑↓ reorder · [/] cross-line · [n] break · [d] remove)")
+                yield Label("Layout  (⇧↑↓ reorder · [[/]] cross-line · [[n]] break · [[d]] remove)")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
 
             # Right: live preview
