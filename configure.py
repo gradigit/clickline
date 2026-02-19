@@ -241,8 +241,8 @@ class Config:
 def build_preview(cfg: Config) -> Text:
     """Build a Rich Text preview that looks like the real statusline bar."""
     P = PALETTE
-    sep   = Text(" │ ", style=P["surface2"])
-    dot   = Text(" · ", style=P["surface2"])
+    sep   = Text(" │ ", style="#444444")
+    dot   = Text(" · ", style="#444444")
     lines_of_text: list[Text] = []
     current: Text = Text()
     first_on_line = True
@@ -250,10 +250,10 @@ def build_preview(cfg: Config) -> Text:
 
     def color_for(name: str) -> str:
         if name in BY_NAME:
-            return P.get(BY_NAME[name].color, P["text"])
+            return P.get(BY_NAME[name].color, "#cccccc")
         if name in cfg.custom_items:
-            return P.get(cfg.custom_items[name].color, P["dim"])
-        return P["text"]
+            return P.get(cfg.custom_items[name].color, "#444444")
+        return "#cccccc"
 
     def sample_for(name: str) -> str:
         if name in SAMPLES:
@@ -295,7 +295,7 @@ def build_preview(cfg: Config) -> Text:
 
         if tok == "context":
             current.append(val.split("/")[0], style=f"bold {P['gold']}")
-            current.append("/" + val.split("/")[1] if "/" in val else "", style=P["surface2"])
+            current.append("/" + val.split("/")[1] if "/" in val else "", style="#444444")
         elif tok == "quota":
             parts = val.split(" · ")
             current.append(parts[0], style=f"bold {P['green']}")
@@ -316,13 +316,19 @@ def build_preview(cfg: Config) -> Text:
 
     lines_of_text.append(current)
 
-    # Render as bare statusline text — no "Line N:" labels.
-    # Each line gets a leading space for padding, just like the real statusline.
+    # Mock Claude Code output above the statusline for context.
+    dim = "#555555"
     result = Text()
+    result.append("  I'll update the configuration for you.\n\n", style=dim)
+    result.append("  ✓ ", style="#a6e3a1")
+    result.append("Config saved to ~/.claude/clickline.conf\n", style=dim)
+    result.append("\n")
+
+    # Statusline — rendered exactly as it appears in the terminal.
     for i, lt in enumerate(lines_of_text):
         if i > 0:
             result.append("\n")
-        result.append(" ", style=P["base"])
+        result.append(" ")
         result.append_text(lt)
     return result
 
@@ -364,30 +370,30 @@ class LayoutEditor(Static, can_focus=True):
 
             if tok == LINEBREAK:
                 bar = "─" * 20
-                style = (P["overlay0"] if focused else P["surface2"])
+                style = ("#666666" if focused else "#333333")
                 text.append(f"{prefix}{bar} line break {bar}\n", style=style)
             else:
                 if tok in BY_NAME:
                     e = BY_NAME[tok]
                     label = e.label
-                    clr = P.get(e.color, P["text"])
+                    clr = P.get(e.color, "#cccccc")
                     req = f"  {e.requires}" if e.requires else ""
                 else:
                     label = tok
-                    clr = P["subtext0"]
+                    clr = "#888888"
                     req = "  custom"
 
                 if focused:
-                    text.append(prefix, style=P["text"])
+                    text.append(prefix, style="#cccccc")
                     text.append(label, style=f"bold {clr}")
-                    text.append(f"{req}\n", style=P["overlay0"])
+                    text.append(f"{req}\n", style="#666666")
                 else:
-                    text.append(prefix, style=P["surface2"])
+                    text.append(prefix, style="#333333")
                     text.append(label, style=clr)
-                    text.append(f"{req}\n", style=P["surface2"])
+                    text.append(f"{req}\n", style="#444444")
 
         if not self.items:
-            text.append("  (empty)\n", style=P["surface2"])
+            text.append("  (empty)\n", style="#444444")
         return text
 
     # ── actions ────────────────────────────────────────────────────────────
@@ -495,42 +501,42 @@ class CustomItemDialog(Container):
     DEFAULT_CSS = """
     CustomItemDialog {
         height: auto;
-        background: #181825;
-        border: solid #45475a;
+        background: #161616;
+        border: solid #333333;
         padding: 1 2;
         margin: 1;
     }
     CustomItemDialog Label {
         margin-bottom: 0;
-        color: #6c7086;
+        color: #666666;
     }
     CustomItemDialog Input {
         margin-bottom: 1;
-        background: #313244;
-        color: #cdd6f4;
-        border: solid #45475a;
+        background: #252525;
+        color: #cccccc;
+        border: solid #333333;
     }
     CustomItemDialog Input:focus {
-        border: solid #585b70;
+        border: solid #555555;
     }
     CustomItemDialog Button {
         margin-right: 1;
     }
     CustomItemDialog #ci-ok {
-        background: #45475a;
-        color: #cdd6f4;
+        background: #333333;
+        color: #cccccc;
         border: none;
     }
     CustomItemDialog #ci-ok:hover {
-        background: #585b70;
+        background: #444444;
     }
     CustomItemDialog #ci-cancel {
-        background: #313244;
-        color: #6c7086;
+        background: #252525;
+        color: #666666;
         border: none;
     }
     CustomItemDialog #ci-cancel:hover {
-        background: #45475a;
+        background: #333333;
     }
     """
 
@@ -577,24 +583,24 @@ class OptionsPanel(Container):
     DEFAULT_CSS = """
     OptionsPanel {
         height: auto;
-        background: #181825;
-        border: solid #313244;
+        background: #161616;
+        border: solid #2a2a2a;
         padding: 1 2;
         margin: 0 0 1 0;
         display: none;
     }
     OptionsPanel.visible { display: block; }
     OptionsPanel Label {
-        color: #6c7086;
+        color: #666666;
     }
     OptionsPanel Input {
         width: 12;
-        background: #313244;
-        color: #cdd6f4;
-        border: solid #45475a;
+        background: #252525;
+        color: #cccccc;
+        border: solid #333333;
     }
     OptionsPanel Input:focus {
-        border: solid #585b70;
+        border: solid #555555;
     }
     OptionsPanel Horizontal {
         height: auto;
@@ -646,42 +652,42 @@ class ClicklineApp(App[None]):
 
     CSS = """
     Screen {
-        background: #1e1e2e;
+        background: #1a1a1a;
     }
 
     Header {
-        background: #181825;
-        color: #a6adc8;
+        background: #141414;
+        color: #888888;
         dock: top;
         height: 1;
     }
 
     Footer {
-        background: #181825;
-        color: #45475a;
+        background: #141414;
+        color: #444444;
     }
     Footer > .footer--key {
-        background: #313244;
-        color: #bac2de;
+        background: #252525;
+        color: #aaaaaa;
     }
     Footer > .footer--description {
-        color: #6c7086;
+        color: #666666;
     }
 
     /* ── Preview bar (top, full width) ── */
     #preview-bar {
         height: auto;
-        max-height: 6;
-        background: #11111b;
-        padding: 1 2;
-        border-bottom: solid #313244;
+        max-height: 10;
+        background: #111111;
+        padding: 1 1;
+        border-bottom: solid #2a2a2a;
     }
     #preview-label {
-        color: #45475a;
+        color: #444444;
         margin-bottom: 0;
     }
     #preview-text {
-        color: #cdd6f4;
+        color: #cccccc;
     }
 
     /* ── Two-pane editor area ── */
@@ -693,13 +699,13 @@ class ClicklineApp(App[None]):
     /* ── Layout editor (left, wider) ── */
     #pane-editor {
         width: 1fr;
-        background: #1e1e2e;
-        border-right: solid #313244;
+        background: #1a1a1a;
+        border-right: solid #2a2a2a;
         padding: 1 2;
         overflow-y: auto;
     }
     #editor-label {
-        color: #585b70;
+        color: #555555;
         margin-bottom: 1;
     }
     #editor-widget {
@@ -710,16 +716,16 @@ class ClicklineApp(App[None]):
     #pane-library {
         width: 30;
         min-width: 24;
-        background: #181825;
+        background: #161616;
         padding: 1 1;
     }
     #library-label {
-        color: #585b70;
+        color: #555555;
         margin-bottom: 1;
     }
 
     SelectionList {
-        background: #181825;
+        background: #161616;
         border: none;
         height: 1fr;
     }
@@ -731,18 +737,18 @@ class ClicklineApp(App[None]):
     #btn-add-custom {
         margin-top: 1;
         width: 100%;
-        background: #313244;
-        color: #6c7086;
+        background: #252525;
+        color: #666666;
         border: none;
         min-height: 1;
         height: 1;
     }
     #btn-add-custom:hover {
-        background: #45475a;
-        color: #a6adc8;
+        background: #333333;
+        color: #888888;
     }
     #btn-add-custom:focus {
-        background: #45475a;
+        background: #333333;
     }
     """
 
