@@ -353,6 +353,10 @@ Both use a stale-while-revalidate cache — they never block the statusline rend
 
 PR segment is hidden on the default branch (main/master) since PRs don't apply there.
 
+## Acknowledgments
+
+Per-repo `.clickline` items and service link presets were inspired by [@guzus](https://github.com/guzus)'s [PR #1](https://github.com/gradigit/clickline/pull/1).
+
 ## License
 
 MIT
