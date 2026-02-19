@@ -9,6 +9,7 @@ files:
       - install.sh
       - clickline.conf.default
       - skills/clickline-custom/SKILL.md
+      - configurator.svg
   - path: README.md
     type: readme
     last_updated: "2026-02-20"
@@ -17,6 +18,8 @@ files:
       - configure.py
       - install.sh
       - clickline.conf.default
+      - configurator.svg
+      - preview.svg
   - path: skills/clickline-custom/SKILL.md
     type: skill
     last_updated: "2026-02-20"

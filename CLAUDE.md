@@ -6,6 +6,7 @@
 - `install.sh` — installer + bash wizard fallback
 - `clickline.conf.default` — default config template
 - `skills/clickline-custom/SKILL.md` — custom item skill
+- `configurator.svg` — TUI screenshot for README (generated headless via Textual)
 
 ## Commands
 - `bash install.sh` — install or reconfigure
@@ -19,6 +20,13 @@
 - 10 color themes defined in `THEMES` dict in configure.py (lines 53-104)
 - 5 presets defined in `PRESETS` dict in configure.py (lines 159-220)
 - Adjacent custom items use dot separator (` · `), other elements use pipe (` │ `)
+
+## Gotchas
+- Custom item keys in JSON stored without `custom_` prefix; normalize to `custom_` on load, strip on save
+- macOS `fold` counts characters not bytes — `fold -w1` for single multibyte chars, not `-w3`
+- Statusline renders per-response only (no continuous polling) — animation not possible
+- `uv run --with textual python3` for one-off textual usage without project deps
+- Headless TUI screenshot: `app.run_test(size=(100, 32))` + `app.save_screenshot('file.svg')`
 
 ## Code Style
 - Shell: bash with `set -euo pipefail`, BSD date/sed (macOS)
