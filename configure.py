@@ -721,20 +721,18 @@ class ClicklineApp(App[None]):
         """Keep library checkboxes in sync after layout editor changes."""
         in_layout = set(self.cfg.layout)
         lib = self.query_one("#library", SelectionList)
-        for i in range(len(lib._options)):
-            opt = lib._options[i]
+        for opt in lib.options:
             val = opt.value
-            selected = val in in_layout
-            if selected:
-                lib.select(i)
+            if val in in_layout:
+                lib.select(val)
             else:
-                lib.deselect(i)
+                lib.deselect(val)
 
     @on(SelectionList.SelectionToggled, "#library")
     def _library_toggled(self, event: SelectionList.SelectionToggled) -> None:
         name = event.selection.value
         editor = self.query_one("#editor-widget", LayoutEditor)
-        if event.selection_list.is_selected(event.selection_index):
+        if name in event.selection_list.selected:
             editor.add_element(name)
         else:
             editor.remove_element(name)
