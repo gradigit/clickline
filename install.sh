@@ -196,6 +196,7 @@ load_conf() {
   PR_CACHE_TTL=${PR_CACHE_TTL:-60}
   CI_CACHE_TTL=${CI_CACHE_TTL:-30}
   QUOTA_CACHE_TTL=${QUOTA_CACHE_TTL:-60}
+  THEME=${THEME:-catppuccin-mocha}
 }
 
 # shellcheck source=/dev/null
@@ -324,6 +325,45 @@ select_path_target() {
   esac
 }
 
+# ── Theme selector ────────────────────────────────────────────────────────────
+select_theme() {
+  printf '\n%s\n' "$(_bold 'Color theme:')"
+
+  local -a theme_names=(
+    catppuccin-mocha catppuccin-frappe catppuccin-latte
+    dracula tokyo-night gruvbox-dark nord solarized-dark one-dark rose-pine
+  )
+  local -a theme_descs=(
+    "Pastel dark (default)"
+    "Pastel mid-tone"
+    "Pastel light"
+    "High contrast dark"
+    "Cool blue dark"
+    "Warm retro dark"
+    "Arctic blue dark"
+    "Classic low-contrast"
+    "Atom-inspired dark"
+    "Soft elegant dark"
+  )
+
+  local default_idx=1
+  local idx=1
+  for tn in "${theme_names[@]}"; do
+    local cur=""
+    [ "$tn" = "$THEME" ] && { cur="$(_dim ' (current)')"; default_idx=$idx; }
+    printf '  %s %2d. %-22s %s%s\n' "$(_bold '')" "$idx" "$tn" "${theme_descs[$(( idx - 1 ))]}" "$cur"
+    (( idx++ ))
+  done
+
+  printf '\nEnter 1-%d or Enter to keep [%d]: ' "${#theme_names[@]}" "$default_idx"
+  local choice
+  read -r choice </dev/tty
+  choice=${choice:-$default_idx}
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#theme_names[@]}" ]; then
+    THEME="${theme_names[$(( choice - 1 ))]}"
+  fi
+}
+
 # ── Layout preview (plain text, bash 3.2 compatible) ─────────────────────────
 _prev_layout() {
   local layout="$1"
@@ -443,6 +483,7 @@ PATH_LINK_TARGET=${PATH_LINK_TARGET}
 PR_CACHE_TTL=${PR_CACHE_TTL}
 CI_CACHE_TTL=${CI_CACHE_TTL}
 QUOTA_CACHE_TTL=${QUOTA_CACHE_TTL}
+THEME=${THEME}
 EOF
   printf '\n%s\n' "$(_green "Config written to $CONF")"
 }
@@ -526,6 +567,7 @@ else
   fi
   select_features
   select_path_target
+  select_theme
   select_layout
   write_conf
 fi

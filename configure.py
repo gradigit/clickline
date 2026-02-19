@@ -46,39 +46,67 @@ from textual.widgets import (
 )
 from textual.widgets._selection_list import Selection
 
-# ── Catppuccin Mocha ──────────────────────────────────────────────────────────
-PALETTE = {
-    # accents
-    "sapphire":  "#74c7ec",
-    "lavender":  "#b4befe",
-    "blue":      "#89b4fa",
-    "mauve":     "#cba6f7",
-    "pink":      "#f5c2e7",
-    "gold":      "#f9e2af",
-    "green":     "#a6e3a1",
-    "teal":      "#94e2d5",
-    "peach":     "#fab387",
-    "red":       "#f38ba8",
-    "flamingo":  "#f2cdcd",
-    "rosewater": "#f5e0dc",
-    # neutrals
-    "text":      "#cdd6f4",
-    "subtext1":  "#bac2de",
-    "subtext0":  "#a6adc8",
-    "overlay2":  "#9399b2",
-    "overlay1":  "#7f849c",
-    "overlay0":  "#6c7086",
-    "surface2":  "#585b70",
-    "surface1":  "#45475a",
-    "surface0":  "#313244",
-    "base":      "#1e1e2e",
-    "mantle":    "#181825",
-    "crust":     "#11111b",
-    # semantic aliases used by render code
-    "dim":       "#45475a",
-    "sep":       "#585b70",
-    "label":     "#6c7086",
+# ── Theme system ─────────────────────────────────────────────────────────────
+# Each theme has 10 semantic color slots used by the statusline preview.
+# TUI chrome (borders, labels) stays neutral gray regardless of theme.
+THEMES: dict[str, dict[str, str]] = {
+    "catppuccin-mocha": {
+        "label": "#6c7086", "sep": "#585b70", "dim": "#45475a",
+        "sapphire": "#74c7ec", "lavender": "#b4befe", "mauve": "#cba6f7",
+        "gold": "#f9e2af", "green": "#a6e3a1", "peach": "#fab387", "red": "#f38ba8",
+    },
+    "catppuccin-frappe": {
+        "label": "#838ba7", "sep": "#737994", "dim": "#626880",
+        "sapphire": "#85c1dc", "lavender": "#babbf1", "mauve": "#ca9ee6",
+        "gold": "#e5c890", "green": "#a6d189", "peach": "#ef9f76", "red": "#e78284",
+    },
+    "catppuccin-latte": {
+        "label": "#8c8fa1", "sep": "#acb0be", "dim": "#bcc0cc",
+        "sapphire": "#209fb5", "lavender": "#7287fd", "mauve": "#8839ef",
+        "gold": "#df8e1d", "green": "#40a02b", "peach": "#fe640b", "red": "#d20f39",
+    },
+    "dracula": {
+        "label": "#6272a4", "sep": "#44475a", "dim": "#44475a",
+        "sapphire": "#8be9fd", "lavender": "#bd93f9", "mauve": "#ff79c6",
+        "gold": "#f1fa8c", "green": "#50fa7b", "peach": "#ffb86c", "red": "#ff5555",
+    },
+    "tokyo-night": {
+        "label": "#565f89", "sep": "#363f5f", "dim": "#363f5f",
+        "sapphire": "#7dcfff", "lavender": "#7aa2f7", "mauve": "#bb9af7",
+        "gold": "#e0af68", "green": "#9ece6a", "peach": "#ff9e64", "red": "#f7768e",
+    },
+    "gruvbox-dark": {
+        "label": "#928374", "sep": "#504945", "dim": "#504945",
+        "sapphire": "#83a598", "lavender": "#d3869b", "mauve": "#d3869b",
+        "gold": "#fabd2f", "green": "#b8bb26", "peach": "#fe8019", "red": "#fb4934",
+    },
+    "nord": {
+        "label": "#4c566a", "sep": "#434c5e", "dim": "#3b4252",
+        "sapphire": "#88c0d0", "lavender": "#81a1c1", "mauve": "#b48ead",
+        "gold": "#ebcb8b", "green": "#a3be8c", "peach": "#d08770", "red": "#bf616a",
+    },
+    "solarized-dark": {
+        "label": "#586e75", "sep": "#073642", "dim": "#073642",
+        "sapphire": "#268bd2", "lavender": "#6c71c4", "mauve": "#d33682",
+        "gold": "#b58900", "green": "#859900", "peach": "#cb4b16", "red": "#dc322f",
+    },
+    "one-dark": {
+        "label": "#5c6370", "sep": "#3b4048", "dim": "#3b4048",
+        "sapphire": "#56b6c2", "lavender": "#61afef", "mauve": "#c678dd",
+        "gold": "#e5c07b", "green": "#98c379", "peach": "#d19a66", "red": "#e06c75",
+    },
+    "rose-pine": {
+        "label": "#6e6a86", "sep": "#393552", "dim": "#393552",
+        "sapphire": "#9ccfd8", "lavender": "#c4a7e7", "mauve": "#eb6f92",
+        "gold": "#f6c177", "green": "#31748f", "peach": "#ea9a97", "red": "#eb6f92",
+    },
 }
+
+THEME_NAMES = list(THEMES.keys())
+
+def get_palette(theme: str) -> dict[str, str]:
+    """Return palette dict for a theme, falling back to catppuccin-mocha."""
+    return THEMES.get(theme, THEMES["catppuccin-mocha"])
 
 # ── Built-in element catalogue ────────────────────────────────────────────────
 LINEBREAK = "||"  # sentinel in layout list
@@ -209,6 +237,7 @@ class Config:
         "SHOW_QUOTA": True, "SHOW_COST": True,
     })
     leading_newline:  bool = False
+    theme:            str  = "catppuccin-mocha"
     layout:           list[str] = field(default_factory=lambda: [
         "path", "branch", "commit", "pr", "ci", "model", "version", "vim", "agent",
         LINEBREAK,
@@ -237,6 +266,8 @@ class Config:
                     cfg.show_flags[key] = val.lower() == "true"
                 elif key == "LEADING_NEWLINE":
                     cfg.leading_newline = val.lower() == "true"
+                elif key == "THEME":
+                    cfg.theme = val if val in THEMES else "catppuccin-mocha"
                 elif key == "LAYOUT":
                     items: list[str] = []
                     for tok in val.split():
@@ -278,6 +309,7 @@ class Config:
             out.append(f"{k}={'true' if v else 'false'}")
         out.append(f"LEADING_NEWLINE={'true' if self.leading_newline else 'false'}")
         out.append(f"LAYOUT={layout_str}")
+        out.append(f"THEME={self.theme}")
         out += [
             "",
             "# ── Options ───────────────────────────────────────────────────────────────────",
@@ -300,7 +332,7 @@ class Config:
 # ── Preview renderer ──────────────────────────────────────────────────────────
 def build_preview(cfg: Config) -> Text:
     """Build a Rich Text preview that looks like the real statusline bar."""
-    P = PALETTE
+    P = get_palette(cfg.theme)
     sep   = Text(" │ ", style="#444444")
     dot   = Text(" · ", style="#444444")
     lines_of_text: list[Text] = []
@@ -511,7 +543,7 @@ class LayoutEditor(Static, can_focus=True):
 
     # ── rendering ──────────────────────────────────────────────────────────
     def render(self) -> Text:
-        P = PALETTE
+        P = get_palette(self.app.cfg.theme) if hasattr(self, "app") and hasattr(self.app, "cfg") else get_palette("catppuccin-mocha")
         text = Text()
         for i, tok in enumerate(self.items):
             focused = i == self.cursor
@@ -868,6 +900,41 @@ class ClicklineApp(App[None]):
         color: #cccccc;
     }
 
+    /* ── Theme bar ── */
+    #theme-bar {
+        height: auto;
+        background: #141414;
+        padding: 0 1;
+        border-bottom: solid #2a2a2a;
+        layout: horizontal;
+        overflow-x: auto;
+    }
+    #theme-label {
+        color: #555555;
+        width: auto;
+        padding: 0 1 0 0;
+    }
+    .theme-btn {
+        min-width: 16;
+        height: 1;
+        background: #252525;
+        color: #888888;
+        border: none;
+        margin: 0 0 0 1;
+    }
+    .theme-btn:hover {
+        background: #333333;
+        color: #cccccc;
+    }
+    .theme-btn:focus {
+        background: #333333;
+        color: #cccccc;
+    }
+    .theme-btn.active {
+        background: #333333;
+        color: #cccccc;
+    }
+
     /* ── Two-pane editor area ── */
     #main-row {
         height: 1fr;
@@ -936,6 +1003,7 @@ class ClicklineApp(App[None]):
         Binding("q",      "quit",           "q Quit"),
         Binding("ctrl+s", "save",           "Save",    show=False),
         Binding("p",      "focus_presets",  "p Presets"),
+        Binding("t",      "focus_themes",   "t Themes"),
         Binding("o",      "toggle_options", "o Options"),
         Binding("c",      "add_custom",     "c Custom"),
         Binding("tab",    "focus_next",     "Tab Switch pane", show=True),
@@ -969,6 +1037,17 @@ class ClicklineApp(App[None]):
                     id=f"preset-{name.lower()}",
                     classes="preset-btn",
                     tooltip=info["desc"],
+                )
+
+        # ── Theme bar ─────────────────────────────────────────────────────
+        with Horizontal(id="theme-bar"):
+            yield Label("THEME", id="theme-label")
+            for tname in THEME_NAMES:
+                classes = "theme-btn active" if tname == self.cfg.theme else "theme-btn"
+                yield Button(
+                    tname,
+                    id=f"theme-{tname}",
+                    classes=classes,
                 )
 
         # ── Two-pane editor area ─────────────────────────────────────────
@@ -1080,6 +1159,14 @@ class ClicklineApp(App[None]):
         except Exception:
             pass
 
+    def action_focus_themes(self) -> None:
+        """Focus the first theme button."""
+        try:
+            first = self.query_one("#theme-bar .theme-btn", Button)
+            first.focus()
+        except Exception:
+            pass
+
     def action_help(self) -> None:
         self.notify(
             "Tab / Shift+Tab  switch panes\n"
@@ -1124,6 +1211,22 @@ class ClicklineApp(App[None]):
         self.notify(f"Loaded \"{name}\" preset \u2014 press s to save", timeout=4)
         # Return focus to editor
         editor.focus()
+
+    # ── theme handling ────────────────────────────────────────────────────
+    @on(Button.Pressed, ".theme-btn")
+    def _theme_pressed(self, event: Button.Pressed) -> None:
+        btn_id = event.button.id or ""
+        theme_name = btn_id.replace("theme-", "", 1)
+        if theme_name in THEMES:
+            self.cfg.theme = theme_name
+            # Update active class on theme buttons
+            for btn in self.query(".theme-btn"):
+                btn.remove_class("active")
+            event.button.add_class("active")
+            self._refresh_preview()
+            # Re-render layout editor to reflect new theme colors
+            self.query_one("#editor-widget", LayoutEditor).refresh()
+            self.notify(f"Theme: {theme_name} — press s to save", timeout=4)
 
     # ── + Custom button click ────────────────────────────────────────────
     @on(Button.Pressed, "#btn-add-custom")
