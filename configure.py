@@ -906,19 +906,20 @@ class ClicklineApp(App[None]):
         background: #141414;
         padding: 0 1;
         border-bottom: solid #2a2a2a;
-        layout: horizontal;
-        overflow-x: auto;
     }
     #theme-label {
         color: #555555;
-        width: auto;
-        padding: 0 1 0 0;
+        height: 1;
+    }
+    .theme-row {
+        height: 1;
+        layout: horizontal;
     }
     .theme-btn {
-        min-width: 16;
+        min-width: 10;
         height: 1;
-        background: #252525;
-        color: #888888;
+        background: #1e1e1e;
+        color: #666666;
         border: none;
         margin: 0 0 0 1;
     }
@@ -1039,16 +1040,18 @@ class ClicklineApp(App[None]):
                     tooltip=info["desc"],
                 )
 
-        # ── Theme bar ─────────────────────────────────────────────────────
-        with Horizontal(id="theme-bar"):
+        # ── Theme bar (two rows of 5) ────────────────────────────────────
+        with Vertical(id="theme-bar"):
             yield Label("THEME", id="theme-label")
-            for tname in THEME_NAMES:
-                classes = "theme-btn active" if tname == self.cfg.theme else "theme-btn"
-                yield Button(
-                    tname,
-                    id=f"theme-{tname}",
-                    classes=classes,
-                )
+            for row_start in range(0, len(THEME_NAMES), 5):
+                with Horizontal(classes="theme-row"):
+                    for tname in THEME_NAMES[row_start:row_start + 5]:
+                        classes = "theme-btn active" if tname == self.cfg.theme else "theme-btn"
+                        yield Button(
+                            tname,
+                            id=f"theme-{tname}",
+                            classes=classes,
+                        )
 
         # ── Two-pane editor area ─────────────────────────────────────────
         with Horizontal(id="main-row"):
