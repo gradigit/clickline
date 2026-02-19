@@ -376,15 +376,8 @@ def build_preview(cfg: Config) -> Text:
 
     lines_of_text.append(current)
 
-    # Mock Claude Code output above the statusline for context.
-    dim = "#555555"
+    # Render just the statusline text (mascot provides the context above).
     result = Text()
-    result.append("  I'll update the configuration for you.\n\n", style=dim)
-    result.append("  ✓ ", style="#a6e3a1")
-    result.append("Config saved to ~/.claude/clickline.conf\n", style=dim)
-    result.append("\n")
-
-    # Statusline — rendered exactly as it appears in the terminal.
     for i, lt in enumerate(lines_of_text):
         if i > 0:
             result.append("\n")
@@ -392,51 +385,94 @@ def build_preview(cfg: Config) -> Text:
         result.append_text(lt)
     return result
 
-# ── Tip spinner (subtle rotating hints) ───────────────────────────────────────
-class TipSpinner(Static):
-    """Animated spinner with rotating keyboard tips, ~5s per tip."""
+# ── Pacing mascot (Claude Code figure in preview) ────────────────────────────
+class PacingMascot(Static):
+    """The Claude Code mascot pacing back and forth with rotating tip bubbles."""
 
     TIPS = [
-        "Shift+Up/Down to reorder items",
-        "[ ] moves items between lines",
-        "Space toggles in the element library",
-        "Tab switches between panes",
-        "Press p to load a preset",
-        "Press o for advanced options",
-        "Press c to add a custom element",
+        "Try a preset!",
+        "Shift+arrows reorder",
+        "[ ] switch lines",
+        "Space toggles",
+        "Press s to save",
+        "Tab switches panes",
+        "Press o for options",
     ]
-    FRAMES = "\u28cb\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f"  # braille spinner
+
+    # Mascot colors (from Claude Code CLI)
+    _SPARK = "#b4befe"   # lavender — sparkle
+    _STEM  = "#6c7086"   # gray — antenna stem
+    _HAT   = "#b4befe"   # lavender — upper pyramid
+    _BODY  = "#fab387"   # peach — main body + feet
+
+    # Static body lines: (text, style)
+    _LINES = [
+        ("    \u273b", None),         # sparkle (colored separately)
+        ("    |", _STEM),
+        ("   \u259f\u2588\u2599", _HAT),
+        (" \u2590\u259b\u2588\u2588\u2588\u259c\u258c", _BODY),
+        ("\u259d\u259c\u2588\u2588\u2588\u2588\u2588\u259b\u2598", _BODY),
+    ]
+
+    # Feet walk frames (subtle waddle)
+    _FEET = [
+        ("  \u2598\u2598 \u259d\u259d", _BODY),   # stance 0: normal
+        (" \u2598\u2598  \u259d\u259d", _BODY),    # stance 1: stride
+    ]
+
+    _RANGE = 20   # chars of horizontal travel
+    _FPS   = 3    # 3 frames per second
 
     DEFAULT_CSS = """
-    TipSpinner {
-        height: 1;
-        margin-top: 1;
-        color: #444444;
+    PacingMascot {
+        height: 6;
     }
     """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._frame = 0
+        self._pos = 2
+        self._dir = 1
+        self._step = 0
         self._tip = 0
 
     def on_mount(self) -> None:
-        self.set_interval(0.1, self._spin)
+        self.set_interval(1.0 / self._FPS, self._tick)
         self.set_interval(5.0, self._next_tip)
 
-    def _spin(self) -> None:
-        self._frame = (self._frame + 1) % len(self.FRAMES)
+    def _tick(self) -> None:
+        self._pos += self._dir
+        self._step = (self._step + 1) % 2
+        if self._pos >= self._RANGE:
+            self._dir = -1
+        elif self._pos <= 2:
+            self._dir = 1
         self.refresh()
 
     def _next_tip(self) -> None:
         self._tip = (self._tip + 1) % len(self.TIPS)
-        self.refresh()
 
     def render(self) -> Text:
-        return Text.assemble(
-            (f"  {self.FRAMES[self._frame]} ", "#555555"),
-            (self.TIPS[self._tip], "#444444"),
-        )
+        tip = self.TIPS[self._tip]
+        pad = " " * self._pos
+        result = Text()
+
+        for i, (line, style) in enumerate(self._LINES):
+            result.append(pad)
+            if i == 0:
+                # Sparkle line — color the ✻, append speech bubble
+                result.append(line, style=self._SPARK)
+                result.append(f"  \u201c{tip}\u201d", style="#444444")
+            else:
+                result.append(line, style=style)
+            result.append("\n")
+
+        # Feet (animated waddle)
+        feet_text, feet_style = self._FEET[self._step]
+        result.append(pad)
+        result.append(feet_text, style=feet_style)
+
+        return result
 
 
 # ── LayoutEditor widget ───────────────────────────────────────────────────────
@@ -784,14 +820,13 @@ class ClicklineApp(App[None]):
     /* ── Preview bar (top, full width) ── */
     #preview-bar {
         height: auto;
-        max-height: 10;
+        max-height: 12;
         background: #111111;
         padding: 0 1;
         border-bottom: solid #2a2a2a;
     }
-    #preview-label {
-        color: #555555;
-        margin-bottom: 0;
+    #mascot {
+        height: 6;
     }
     #preview-text {
         color: #cccccc;
@@ -916,7 +951,7 @@ class ClicklineApp(App[None]):
 
         # ── Preview bar (full width, top) ────────────────────────────────
         with Container(id="preview-bar"):
-            yield Label("LIVE PREVIEW", id="preview-label")
+            yield PacingMascot(id="mascot")
             yield Static(build_preview(self.cfg), id="preview-text")
 
         # ── Preset bar ───────────────────────────────────────────────────
@@ -937,7 +972,6 @@ class ClicklineApp(App[None]):
             with ScrollableContainer(id="pane-editor"):
                 yield Label("LAYOUT  \u2502  \u2191\u2193 navigate  Shift+\u2191\u2193 reorder  [[ ]] switch line  n break  d delete", id="editor-label")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
-                yield TipSpinner(id="tip-spinner")
 
             # Right: element library (narrower)
             with Vertical(id="pane-library"):
