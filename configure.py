@@ -126,6 +126,66 @@ SAMPLES: dict[str, str] = {
     "cost":    "$4",
 }
 
+# ── Presets ───────────────────────────────────────────────────────────────────
+PRESETS: dict[str, dict] = {
+    "Minimal": {
+        "desc": "Just path + model",
+        "layout": ["path", LINEBREAK, "model"],
+        "flags": {
+            "SHOW_BRANCH": False, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
+            "SHOW_COMMIT": False, "SHOW_PR": False, "SHOW_CI": False,
+            "SHOW_MODEL": True, "SHOW_VERSION": False,
+            "SHOW_CONTEXT": False, "SHOW_QUOTA": False, "SHOW_COST": False,
+        },
+    },
+    "Clean": {
+        "desc": "Key info, two lines",
+        "layout": ["path", "branch", "model", LINEBREAK, "context", "cost"],
+        "flags": {
+            "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
+            "SHOW_COMMIT": False, "SHOW_PR": False, "SHOW_CI": False,
+            "SHOW_MODEL": True, "SHOW_VERSION": False,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": False, "SHOW_COST": True,
+        },
+    },
+    "Standard": {
+        "desc": "Recommended default",
+        "layout": ["path", "branch", "pr", "model", LINEBREAK, "context", "quota", "cost"],
+        "flags": {
+            "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
+            "SHOW_COMMIT": False, "SHOW_PR": True, "SHOW_CI": False,
+            "SHOW_MODEL": True, "SHOW_VERSION": False,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+        },
+    },
+    "Developer": {
+        "desc": "Git + CI + vim details",
+        "layout": [
+            "path", "branch", "commit", "pr", "ci", "model", "vim",
+            LINEBREAK, "context", "quota", "cost",
+        ],
+        "flags": {
+            "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": True,
+            "SHOW_COMMIT": True, "SHOW_PR": True, "SHOW_CI": True,
+            "SHOW_MODEL": True, "SHOW_VERSION": False,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+        },
+    },
+    "Full": {
+        "desc": "Everything enabled",
+        "layout": [
+            "path", "branch", "commit", "pr", "ci", "model", "version", "vim", "agent",
+            LINEBREAK, "context", "quota", "cost",
+        ],
+        "flags": {
+            "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": True,
+            "SHOW_COMMIT": True, "SHOW_PR": True, "SHOW_CI": True,
+            "SHOW_MODEL": True, "SHOW_VERSION": True,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+        },
+    },
+}
+
 # ── Config dataclasses ────────────────────────────────────────────────────────
 CONF_PATH   = Path.home() / ".claude" / "clickline.conf"
 CUSTOM_PATH = Path.home() / ".claude" / "clickline-custom.json"
@@ -331,6 +391,53 @@ def build_preview(cfg: Config) -> Text:
         result.append(" ")
         result.append_text(lt)
     return result
+
+# ── Tip spinner (subtle rotating hints) ───────────────────────────────────────
+class TipSpinner(Static):
+    """Animated spinner with rotating keyboard tips, ~5s per tip."""
+
+    TIPS = [
+        "Shift+Up/Down to reorder items",
+        "[ ] moves items between lines",
+        "Space toggles in the element library",
+        "Tab switches between panes",
+        "Press p to load a preset",
+        "Press o for advanced options",
+        "Press c to add a custom element",
+    ]
+    FRAMES = "\u28cb\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f"  # braille spinner
+
+    DEFAULT_CSS = """
+    TipSpinner {
+        height: 1;
+        margin-top: 1;
+        color: #444444;
+    }
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._frame = 0
+        self._tip = 0
+
+    def on_mount(self) -> None:
+        self.set_interval(0.1, self._spin)
+        self.set_interval(5.0, self._next_tip)
+
+    def _spin(self) -> None:
+        self._frame = (self._frame + 1) % len(self.FRAMES)
+        self.refresh()
+
+    def _next_tip(self) -> None:
+        self._tip = (self._tip + 1) % len(self.TIPS)
+        self.refresh()
+
+    def render(self) -> Text:
+        return Text.assemble(
+            (f"  {self.FRAMES[self._frame]} ", "#555555"),
+            (self.TIPS[self._tip], "#444444"),
+        )
+
 
 # ── LayoutEditor widget ───────────────────────────────────────────────────────
 class LayoutEditor(Static, can_focus=True):
@@ -679,7 +786,7 @@ class ClicklineApp(App[None]):
         height: auto;
         max-height: 10;
         background: #111111;
-        padding: 1 1;
+        padding: 0 1;
         border-bottom: solid #2a2a2a;
     }
     #preview-label {
@@ -687,6 +794,36 @@ class ClicklineApp(App[None]):
         margin-bottom: 0;
     }
     #preview-text {
+        color: #cccccc;
+    }
+
+    /* ── Preset bar ── */
+    #preset-bar {
+        height: auto;
+        background: #141414;
+        padding: 0 1;
+        border-bottom: solid #2a2a2a;
+        layout: horizontal;
+    }
+    #preset-label {
+        color: #555555;
+        width: auto;
+        padding: 0 1 0 0;
+    }
+    .preset-btn {
+        min-width: 12;
+        height: 1;
+        background: #252525;
+        color: #888888;
+        border: none;
+        margin: 0 0 0 1;
+    }
+    .preset-btn:hover {
+        background: #333333;
+        color: #cccccc;
+    }
+    .preset-btn:focus {
+        background: #333333;
         color: #cccccc;
     }
 
@@ -701,12 +838,12 @@ class ClicklineApp(App[None]):
         width: 1fr;
         background: #1a1a1a;
         border-right: solid #2a2a2a;
-        padding: 1 2;
+        padding: 0 1;
         overflow-y: auto;
     }
     #editor-label {
-        color: #666666;
-        margin-bottom: 1;
+        color: #555555;
+        margin-bottom: 0;
     }
     #editor-widget {
         height: auto;
@@ -717,11 +854,11 @@ class ClicklineApp(App[None]):
         width: 30;
         min-width: 24;
         background: #161616;
-        padding: 1 1;
+        padding: 0 1;
     }
     #library-label {
-        color: #666666;
-        margin-bottom: 1;
+        color: #555555;
+        margin-bottom: 0;
     }
 
     SelectionList {
@@ -749,6 +886,7 @@ class ClicklineApp(App[None]):
     }
     #btn-add-custom:focus {
         background: #333333;
+        color: #888888;
     }
     """
 
@@ -756,12 +894,13 @@ class ClicklineApp(App[None]):
         Binding("s",      "save",           "s Save"),
         Binding("q",      "quit",           "q Quit"),
         Binding("ctrl+s", "save",           "Save",    show=False),
+        Binding("p",      "focus_presets",  "p Presets"),
         Binding("o",      "toggle_options", "o Options"),
-        Binding("c",      "add_custom",     "c Custom element"),
+        Binding("c",      "add_custom",     "c Custom"),
         Binding("tab",    "focus_next",     "Tab Switch pane", show=True),
         Binding("shift+tab", "focus_previous", show=False),
         Binding("escape", "cancel_dialog",  show=False),
-        Binding("question_mark", "help",    "? All shortcuts"),
+        Binding("question_mark", "help",    "? Help"),
     ]
 
     def __init__(self, cfg: Config) -> None:
@@ -777,20 +916,32 @@ class ClicklineApp(App[None]):
 
         # ── Preview bar (full width, top) ────────────────────────────────
         with Container(id="preview-bar"):
-            yield Label("LIVE PREVIEW — updates as you edit", id="preview-label")
+            yield Label("LIVE PREVIEW", id="preview-label")
             yield Static(build_preview(self.cfg), id="preview-text")
+
+        # ── Preset bar ───────────────────────────────────────────────────
+        with Horizontal(id="preset-bar"):
+            yield Label("PRESETS", id="preset-label")
+            for name, info in PRESETS.items():
+                yield Button(
+                    f"{name}",
+                    id=f"preset-{name.lower()}",
+                    classes="preset-btn",
+                    tooltip=info["desc"],
+                )
 
         # ── Two-pane editor area ─────────────────────────────────────────
         with Horizontal(id="main-row"):
 
             # Left: layout editor (wider)
             with ScrollableContainer(id="pane-editor"):
-                yield Label("LAYOUT ORDER — arrow keys to move, Shift+arrows to reorder", id="editor-label")
+                yield Label("LAYOUT  \u2502  \u2191\u2193 navigate  Shift+\u2191\u2193 reorder  [[ ]] switch line  n break  d delete", id="editor-label")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
+                yield TipSpinner(id="tip-spinner")
 
             # Right: element library (narrower)
             with Vertical(id="pane-library"):
-                yield Label("TOGGLE ON/OFF — Space to toggle", id="library-label")
+                yield Label("ELEMENTS  \u2502  Space toggle", id="library-label")
                 yield self._build_library()
                 yield Button("+ Custom element", id="btn-add-custom")
 
@@ -817,11 +968,9 @@ class ClicklineApp(App[None]):
         self.title = "clickline configurator"
         self.sub_title = str(CONF_PATH)
         self.notify(
-            "Use arrow keys to navigate, Shift+arrows to reorder.\n"
-            "Tab to switch panes, Space to toggle elements.\n"
-            "Press s to save, q to quit.",
+            "Try a preset (p) or customise below. Press s to save.",
             title="Welcome",
-            timeout=8,
+            timeout=5,
         )
 
     # ── react to layout changes ──────────────────────────────────────────
@@ -883,15 +1032,24 @@ class ClicklineApp(App[None]):
             d.remove()
         self.query_one("#editor-widget", LayoutEditor).focus()
 
+    def action_focus_presets(self) -> None:
+        """Focus the first preset button."""
+        try:
+            first = self.query_one("#preset-bar .preset-btn", Button)
+            first.focus()
+        except Exception:
+            pass
+
     def action_help(self) -> None:
         self.notify(
             "Tab / Shift+Tab  switch panes\n"
             "Space            toggle in library\n"
-            "↑↓ / k j         cursor\n"
-            "Shift+↑↓ / K J   reorder element\n"
+            "\u2191\u2193 / k j         cursor\n"
+            "Shift+\u2191\u2193 / K J   reorder element\n"
             "[ ]              move across lines\n"
             "n                insert line break\n"
             "d / Delete       remove element\n"
+            "p                presets\n"
             "o                options panel\n"
             "c                custom item\n"
             "s                save\n"
@@ -899,6 +1057,38 @@ class ClicklineApp(App[None]):
             title="Keyboard shortcuts",
             timeout=15,
         )
+
+    # ── preset handling ──────────────────────────────────────────────────
+    @on(Button.Pressed, ".preset-btn")
+    def _preset_pressed(self, event: Button.Pressed) -> None:
+        btn_id = event.button.id or ""
+        # Extract preset name from id like "preset-standard"
+        key = btn_id.replace("preset-", "")
+        for name in PRESETS:
+            if name.lower() == key:
+                self._apply_preset(name)
+                return
+
+    def _apply_preset(self, name: str) -> None:
+        preset = PRESETS[name]
+        self.cfg.layout = list(preset["layout"])
+        self.cfg.show_flags.update(preset["flags"])
+        # Update editor widget
+        editor = self.query_one("#editor-widget", LayoutEditor)
+        editor.items = list(self.cfg.layout)
+        editor.cursor = 0
+        editor.refresh()
+        # Sync library checkboxes
+        self._sync_library_to_layout()
+        self._refresh_preview()
+        self.notify(f"Loaded \"{name}\" preset \u2014 press s to save", timeout=4)
+        # Return focus to editor
+        editor.focus()
+
+    # ── + Custom button click ────────────────────────────────────────────
+    @on(Button.Pressed, "#btn-add-custom")
+    def _btn_add_custom(self, _: Button.Pressed) -> None:
+        self.action_add_custom()
 
     # ── custom item dialog handlers ──────────────────────────────────────
     @on(CustomItemDialog.Submitted)
