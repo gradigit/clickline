@@ -376,8 +376,14 @@ def build_preview(cfg: Config) -> Text:
 
     lines_of_text.append(current)
 
-    # Render just the statusline text (mascot provides the context above).
+    # Mock Claude Code output above the statusline.
+    dim = "#555555"
     result = Text()
+    result.append("  I'll update the configuration for you.\n\n", style=dim)
+    result.append("  \u2713 ", style="#a6e3a1")
+    result.append("Config saved to ~/.claude/clickline.conf\n\n", style=dim)
+
+    # Statusline bar.
     for i, lt in enumerate(lines_of_text):
         if i > 0:
             result.append("\n")
