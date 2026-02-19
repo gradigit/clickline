@@ -192,7 +192,43 @@ LAYOUT=path branch pr custom_clock | context quota cost
 
 Adjacent custom items render with dot separators (` · `) instead of pipe separators (` │ `).
 
-### Sample custom items
+### Service link presets
+
+Drop a `.clickline` in any repo to add clickable links to your deployment dashboards:
+
+```json
+{
+  "backend": {
+    "label": "backend",
+    "color": "sapphire",
+    "link": "https://my-api.up.railway.app"
+  },
+  "frontend": {
+    "label": "frontend",
+    "color": "green",
+    "link": "https://my-app.vercel.app"
+  },
+  "db": {
+    "label": "db",
+    "color": "mauve",
+    "link": "https://supabase.com/dashboard/project/abc123"
+  }
+}
+```
+
+Common URL patterns:
+
+| Service | URL pattern |
+|---|---|
+| Railway | `https://<app>.up.railway.app` |
+| Vercel | `https://<app>.vercel.app` |
+| Netlify | `https://<app>.netlify.app` |
+| Supabase | `https://supabase.com/dashboard/project/<ref>` |
+| Neon | `https://console.neon.tech/app/projects/<id>` |
+| Render | `https://dashboard.render.com/web/<id>` |
+| Fly.io | `https://fly.io/apps/<app>` |
+
+### Status indicator examples
 
 **Kubernetes context:**
 ```json
