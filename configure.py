@@ -324,12 +324,12 @@ class LayoutEditor(Static, can_focus=True):
     """Keyboard-driven reorderable list with line-break management."""
 
     BINDINGS: ClassVar = [
-        Binding("up,k",          "move_cursor(-1)",    "Up",         show=False),
-        Binding("down,j",        "move_cursor(1)",     "Down",       show=False),
-        Binding("ctrl+up",       "reorder(-1)",        "Move up",    show=False),
-        Binding("ctrl+down",     "reorder(1)",         "Move down",  show=False),
-        Binding("ctrl+shift+up", "cross_line(-1)",     "Prev line",  show=False),
-        Binding("ctrl+shift+down","cross_line(1)",     "Next line",  show=False),
+        Binding("up,k",            "move_cursor(-1)",    "Up",         show=False),
+        Binding("down,j",          "move_cursor(1)",     "Down",       show=False),
+        Binding("shift+up,K",      "reorder(-1)",        "Move up",    show=False),
+        Binding("shift+down,J",    "reorder(1)",         "Move down",  show=False),
+        Binding("left_square_bracket",  "cross_line(-1)", "Prev line",  show=False),
+        Binding("right_square_bracket", "cross_line(1)",  "Next line",  show=False),
         Binding("n",             "insert_linebreak",   "Linebreak",  show=False),
         Binding("d,delete",      "remove_item",        "Remove",     show=False),
     ]
@@ -802,7 +802,7 @@ class ClicklineApp(App[None]):
 
             # Center: layout editor
             with ScrollableContainer(id="pane-editor"):
-                yield Label("Layout  (ctrl+↑↓ reorder · ctrl+shift+↑↓ cross-line · [n] break · [d] remove)")
+                yield Label("Layout  (⇧↑↓ reorder · [/] cross-line · [n] break · [d] remove)")
                 yield LayoutEditor(self.cfg.layout, id="editor-widget")
 
             # Right: live preview
@@ -908,10 +908,10 @@ class ClicklineApp(App[None]):
             "Space            — toggle element in library\n"
             "↑ / k            — move cursor up in layout\n"
             "↓ / j            — move cursor down in layout\n"
-            "ctrl+↑           — reorder: move element up\n"
-            "ctrl+↓           — reorder: move element down\n"
-            "ctrl+shift+↑     — move element to previous line\n"
-            "ctrl+shift+↓     — move element to next line\n"
+            "Shift+↑ / K      — reorder: move element up\n"
+            "Shift+↓ / J      — reorder: move element down\n"
+            "[                — move element to previous line\n"
+            "]                — move element to next line\n"
             "n                — insert line break after cursor\n"
             "d / Delete       — remove element from layout\n"
             "o                — toggle options panel\n"
