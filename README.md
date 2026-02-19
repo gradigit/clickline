@@ -76,6 +76,8 @@ Then add to `~/.claude/settings.json`:
 
 The TUI configurator gives you a live preview, drag-and-drop layout editing, theme switcher, and preset selector:
 
+![configurator](configurator.svg)
+
 ```sh
 python3 ~/.claude/clickline-configure.py
 ```
