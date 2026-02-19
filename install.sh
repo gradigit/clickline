@@ -279,7 +279,7 @@ select_features() {
     done
     printf '\nEnter numbers to toggle (e.g. 3 5 9), or Enter to keep: '
     local input_nums
-    read -r input_nums </dev/tty
+    read -r input_nums </dev/tty || true
     if [ -n "$input_nums" ]; then
       for n in $input_nums; do
         if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#items[@]}" ]; then
@@ -311,7 +311,7 @@ select_path_target() {
 
   printf '\nEnter choice [%d]: ' "$default_num"
   local choice
-  read -r choice </dev/tty
+  read -r choice </dev/tty || true
   choice=${choice:-$default_num}
   case "$choice" in
     1) PATH_LINK_TARGET=finder ;;
