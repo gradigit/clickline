@@ -356,160 +356,145 @@ if [ -n "$ci_status" ]; then
   esac
 fi
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# LINE 1 — path [· branch [·dirty] [↑N ↓N]] [│ commit] [│ PR] [│ CI]
-#           [│ model [thinking]] [│ version] [│ VIM] [│ agent]
-# ═══════════════════════════════════════════════════════════════════════════════
+# ── Element renderer ──────────────────────────────────────────────────────────
+# Called in a subshell via $(render_element name) — prints element to stdout,
+# prints nothing (returns early) when the element is disabled or has no data.
+render_element() {
+  local _e="$1"
+  case "$_e" in
+    path)
+      if [ -n "$path_uri" ]; then
+        printf '%s' "${c_sapphire}"; osc_url "$path_uri" "$short_dir"; printf '%s' "${RST}"
+      else
+        printf '%s%s%s' "${c_sapphire}" "$short_dir" "${RST}"
+      fi ;;
+    branch)
+      [ "${SHOW_BRANCH:-true}" != "true" ] && return
+      [ -z "$git_branch" ] && return
+      printf '%s' "${c_green}"
+      if [ -n "$github_branch_url" ]; then
+        osc_url "$github_branch_url" "$git_branch"
+      else
+        printf '%s' "$git_branch"
+      fi
+      printf '%s' "${RST}"
+      if [ "${SHOW_DIRTY:-true}" = "true" ] && [ -n "$dirty_count" ] && [ "$dirty_count" -gt 0 ]; then
+        printf '%s·%s%s' "${c_peach}" "$dirty_count" "${RST}"
+      fi
+      if [ "${SHOW_AHEAD_BEHIND:-false}" = "true" ]; then
+        [ "${ahead:-0}" -gt 0 ]  && printf ' %s↑%s%s' "${c_green}" "$ahead"  "${RST}"
+        [ "${behind:-0}" -gt 0 ] && printf ' %s↓%s%s' "${c_peach}" "$behind" "${RST}"
+      fi ;;
+    commit)
+      [ "${SHOW_COMMIT:-false}" != "true" ] && return
+      [ -z "$commit_short" ] && return
+      printf '%s' "${c_dim}"
+      if [ -n "$commit_full" ] && [ -n "$repo_path" ]; then
+        osc_url "https://github.com/${repo_path}/commit/${commit_full}" "$commit_short"
+      else
+        printf '%s' "$commit_short"
+      fi
+      printf '%s' "${RST}" ;;
+    pr)
+      [ "${SHOW_PR:-true}" != "true" ] && return
+      if [ -n "$pr_number" ] && [ -n "$pr_url" ]; then
+        printf '%s' "${c_lavender}"; osc_url "$pr_url" "#${pr_number}"; printf '%s' "${RST}"
+      elif [ -n "$pr_new_url" ]; then
+        printf '%s' "${c_dim}"; osc_url "$pr_new_url" "New PR"; printf '%s' "${RST}"
+      else
+        return
+      fi ;;
+    ci)
+      [ "${SHOW_CI:-false}" != "true" ] && return
+      [ -z "$ci_symbol" ] && return
+      if [ -n "$ci_url" ]; then
+        printf '\033]8;;%s\033\\' "$ci_url"; printf '%s' "$ci_symbol"; printf '\033]8;;\033\\'
+      else
+        printf '%s' "$ci_symbol"
+      fi ;;
+    model)
+      [ "${SHOW_MODEL:-true}" != "true" ] && return
+      printf '%s%s' "${c_lavender}" "${BOLD}"
+      osc_url "https://docs.anthropic.com/en/docs/about-claude/models/overview" "$model"
+      printf '%s' "${RST}"
+      [ -n "$thinking" ] && printf ' %s%s%s%s' "${c_mauve}" "${ITALIC}" "$thinking" "${RST}" ;;
+    version)
+      [ "${SHOW_VERSION:-false}" != "true" ] && return
+      [ -z "$ver" ] && return
+      printf '%s' "${c_dim}"; osc_url "https://github.com/anthropics/claude-code/releases" "v${ver}"; printf '%s' "${RST}" ;;
+    vim)
+      [ -z "$vim_mode" ] && return
+      printf '%s%sVIM %s%s%s' "${c_mauve}" "" "${BOLD}" "$vim_mode" "${RST}" ;;
+    agent)
+      [ -z "$agent_name" ] && return
+      printf '%s%s%s' "${c_lavender}" "$agent_name" "${RST}" ;;
+    context)
+      [ "${SHOW_CONTEXT:-true}" != "true" ] && return
+      if [ -n "$used" ]; then
+        local _cw="" _cb=""
+        [ "$used" -ge 80 ] && _cw=" 🚨"
+        [ "$used" -ge 60 ] && [ "$used" -lt 80 ] && _cw=" ⚠️"
+        [ "$used" -ge 60 ] && _cb="${BOLD}"
+        printf '%s%s%s%%%s%s/%s%s%s' "${c_gold}" "$_cb" "$used" "${RST}" "${c_dim}" "$f_ctx_size" "${RST}" "$_cw"
+      else
+        printf '%s—%s' "${c_dim}" "${RST}"
+      fi ;;
+    quota)
+      [ "${SHOW_QUOTA:-true}" != "true" ] && return
+      if [ -n "$five_hr_used" ] && [ -n "$seven_day_used" ]; then
+        local _5u=${five_hr_used%%.*};   [ -z "$_5u" ] && _5u=0
+        local _7u=${seven_day_used%%.*}; [ -z "$_7u" ] && _7u=0
+        local _5l=$(( 100 - _5u )) _7l=$(( 100 - _7u ))
+        local _FC; _FC=$(status_color "$_5u")
+        local _SC; _SC=$(status_color "$_7u")
+        local _5r; _5r=$(fmt_reset "$five_hr_reset")
+        local _7r; _7r=$(fmt_reset_days "$seven_day_reset")
+        printf '%s%s' "$_FC" "${BOLD}"; osc_url "https://claude.ai/settings/usage" "${_5l}%"; printf '%s' "${RST}"
+        [ -n "$_5r" ] && printf ' %s(%s)%s' "${c_dim}" "$_5r" "${RST}"
+        printf '%s' "${DOT}"
+        printf '%s%s' "$_SC" "${BOLD}"; osc_url "https://claude.ai/settings/usage" "${_7l}%"; printf '%s' "${RST}"
+        [ -n "$_7r" ] && printf ' %s(%s)%s' "${c_dim}" "$_7r" "${RST}"
+      else
+        printf '%s' "${c_label}"; osc_url "https://claude.ai/settings/usage" "Quota —"; printf '%s' "${RST}"
+      fi ;;
+    cost)
+      [ "${SHOW_COST:-true}" != "true" ] && return
+      printf '%s%s' "${c_gold}" "${BOLD}"
+      if [ -n "$transcript_path" ]; then
+        osc_url "file://${transcript_path}" "$f_cost"
+      else
+        printf '%s' "$f_cost"
+      fi
+      printf '%s' "${RST}" ;;
+  esac
+}
 
-# Path (clickable → Finder / editor / nothing)
-if [ -n "$path_uri" ]; then
-  printf "${c_sapphire}"
-  osc_url "$path_uri" "$short_dir"
-  printf "${RST}"
-else
-  printf "${c_sapphire}%s${RST}" "$short_dir"
-fi
+# ── Layout rendering ───────────────────────────────────────────────────────────
+# LAYOUT is a space-separated list of element names with | as a line separator.
+# Elements are rendered in order; disabled/empty elements are skipped cleanly.
+_DEFAULT_LAYOUT="path branch commit pr ci model version vim agent | context quota cost"
+IFS=' ' read -ra _tokens <<< "${LAYOUT:-$_DEFAULT_LAYOUT}"
 
-# Branch + decorations
-if [ "${SHOW_BRANCH:-true}" = "true" ] && [ -n "$git_branch" ]; then
-  printf "${DOT}${c_green}"
-  if [ -n "$github_branch_url" ]; then
-    osc_url "$github_branch_url" "$git_branch"
-  else
-    printf "%s" "$git_branch"
+_first=true
+_prev=""
+for _tok in "${_tokens[@]}"; do
+  if [ "$_tok" = "|" ]; then
+    printf '\n'
+    _first=true
+    _prev=""
+    continue
   fi
-  printf "${RST}"
-
-  # Dirty indicator (·N tracked modified + staged files)
-  if [ "${SHOW_DIRTY:-true}" = "true" ] && [ -n "$dirty_count" ] && [ "$dirty_count" -gt 0 ]; then
-    printf "${c_peach}·%s${RST}" "$dirty_count"
+  _out=$(render_element "$_tok")
+  [ -z "$_out" ] && continue
+  if [ "$_first" = "false" ]; then
+    if [ "$_tok" = "branch" ] && [ "$_prev" = "path" ]; then
+      printf '%s' "$DOT"
+    else
+      printf '%s' "$S"
+    fi
   fi
-
-  # Ahead/behind remote
-  if [ "${SHOW_AHEAD_BEHIND:-false}" = "true" ]; then
-    [ "$ahead" -gt 0 ]  && printf " ${c_green}↑%s${RST}" "$ahead"
-    [ "$behind" -gt 0 ] && printf " ${c_peach}↓%s${RST}" "$behind"
-  fi
-fi
-
-# Commit hash (→ GitHub commit page)
-if [ "${SHOW_COMMIT:-false}" = "true" ] && [ -n "$commit_short" ]; then
-  printf "${S}${c_dim}"
-  if [ -n "$commit_full" ] && [ -n "$repo_path" ]; then
-    osc_url "https://github.com/${repo_path}/commit/${commit_full}" "$commit_short"
-  else
-    printf "%s" "$commit_short"
-  fi
-  printf "${RST}"
-fi
-
-# PR link (#N → PR page, or "New PR" → GitHub compare)
-if [ "${SHOW_PR:-true}" = "true" ]; then
-  if [ -n "$pr_number" ] && [ -n "$pr_url" ]; then
-    printf "${S}${c_lavender}"
-    osc_url "$pr_url" "#${pr_number}"
-    printf "${RST}"
-  elif [ -n "$pr_new_url" ]; then
-    printf "${S}${c_dim}"
-    osc_url "$pr_new_url" "New PR"
-    printf "${RST}"
-  fi
-fi
-
-# CI status (✓ / ✗ / ⋯ → GitHub Actions run)
-if [ "${SHOW_CI:-false}" = "true" ] && [ -n "$ci_symbol" ]; then
-  printf "${S}"
-  if [ -n "$ci_url" ]; then
-    printf '\033]8;;%s\033\\' "$ci_url"
-    printf "${ci_symbol}"
-    printf '\033]8;;\033\\'
-  else
-    printf "${ci_symbol}"
-  fi
-fi
-
-# Model name (→ Anthropic model docs)
-if [ "${SHOW_MODEL:-true}" = "true" ]; then
-  printf "${S}${c_lavender}${BOLD}"
-  osc_url "https://docs.anthropic.com/en/docs/about-claude/models/overview" "$model"
-  printf "${RST}"
-  [ -n "$thinking" ] && printf " ${c_mauve}${ITALIC}%s${RST}" "$thinking"
-fi
-
-# Claude Code version (→ GitHub releases)
-if [ "${SHOW_VERSION:-false}" = "true" ] && [ -n "$ver" ]; then
-  printf "${S}${c_dim}"
-  osc_url "https://github.com/anthropics/claude-code/releases" "v${ver}"
-  printf "${RST}"
-fi
-
-# VIM mode
-[ -n "$vim_mode" ] && printf "${S}${c_mauve}VIM ${BOLD}%s${RST}" "$vim_mode"
-
-# Agent name
-[ -n "$agent_name" ] && printf "${S}${c_lavender}%s${RST}" "$agent_name"
-
-printf '\n'
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# LINE 2 — [ctx%/maxK [warn]] [│ 5h% (t) · 7d% (t)] [│ $cost]
-# ═══════════════════════════════════════════════════════════════════════════════
-_l2sep=false
-
-# Context window
-if [ "${SHOW_CONTEXT:-true}" = "true" ]; then
-  if [ -n "$used" ]; then
-    ctx_warn=""
-    [ "$used" -ge 80 ] && ctx_warn=" 🚨"
-    [ "$used" -ge 60 ] && [ "$used" -lt 80 ] && ctx_warn=" ⚠️"
-    ctx_bold=""
-    [ "$used" -ge 60 ] && ctx_bold="${BOLD}"
-    printf "${c_gold}${ctx_bold}%s%%${RST}${c_dim}/%s${RST}%s" "$used" "$f_ctx_size" "$ctx_warn"
-  else
-    printf "${c_dim}—${RST}"
-  fi
-  _l2sep=true
-fi
-
-# Quota (5h + 7d)
-if [ "${SHOW_QUOTA:-true}" = "true" ]; then
-  [ "$_l2sep" = "true" ] && printf "${S}"
-  if [ -n "$five_hr_used" ] && [ -n "$seven_day_used" ]; then
-    _5u=${five_hr_used%%.*};   [ -z "$_5u" ] && _5u=0
-    _7u=${seven_day_used%%.*}; [ -z "$_7u" ] && _7u=0
-    _5l=$(( 100 - _5u ))
-    _7l=$(( 100 - _7u ))
-    FIVE_C=$(status_color "$_5u")
-    SEVEN_C=$(status_color "$_7u")
-    _5r=$(fmt_reset "$five_hr_reset")
-    _7r=$(fmt_reset_days "$seven_day_reset")
-    printf "${FIVE_C}${BOLD}"
-    osc_url "https://claude.ai/settings/usage" "${_5l}%"
-    printf "${RST}"
-    [ -n "$_5r" ] && printf " ${c_dim}(%s)${RST}" "$_5r"
-    printf "${DOT}"
-    printf "${SEVEN_C}${BOLD}"
-    osc_url "https://claude.ai/settings/usage" "${_7l}%"
-    printf "${RST}"
-    [ -n "$_7r" ] && printf " ${c_dim}(%s)${RST}" "$_7r"
-  else
-    printf "${c_label}"
-    osc_url "https://claude.ai/settings/usage" "Quota —"
-    printf "${RST}"
-  fi
-  _l2sep=true
-fi
-
-# Cost (→ session transcript file)
-if [ "${SHOW_COST:-true}" = "true" ]; then
-  [ "$_l2sep" = "true" ] && printf "${S}"
-  printf "${c_gold}${BOLD}"
-  if [ -n "$transcript_path" ]; then
-    osc_url "file://${transcript_path}" "$f_cost"
-  else
-    printf "%s" "$f_cost"
-  fi
-  printf "${RST}"
-fi
-
+  printf '%s' "$_out"
+  _first=false
+  _prev="$_tok"
+done
 printf '\n'

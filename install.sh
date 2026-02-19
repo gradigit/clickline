@@ -189,6 +189,7 @@ load_conf() {
   SHOW_QUOTA=${SHOW_QUOTA:-true}
   SHOW_COST=${SHOW_COST:-true}
   LEADING_NEWLINE=${LEADING_NEWLINE:-false}
+  LAYOUT=${LAYOUT:-path branch commit pr ci model version vim agent | context quota cost}
   BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS:-25}
   PATH_SEGMENTS=${PATH_SEGMENTS:-2}
   PATH_LINK_TARGET=${PATH_LINK_TARGET:-finder}
@@ -323,6 +324,95 @@ select_path_target() {
   esac
 }
 
+# ── Layout preview (plain text, bash 3.2 compatible) ─────────────────────────
+_prev_layout() {
+  local layout="$1"
+  _ph() {
+    case "$1" in
+      path)    printf '%s' "~/src" ;;
+      branch)  printf '%s' "main·2" ;;
+      commit)  printf '%s' "abc1234" ;;
+      pr)      printf '%s' "#42" ;;
+      ci)      printf '%s' "✓" ;;
+      model)   printf '%s' "Sonnet 4.6" ;;
+      version) printf '%s' "v1.3.0" ;;
+      vim)     printf '%s' "VIM N" ;;
+      agent)   printf '%s' "agent" ;;
+      context) printf '%s' "45%/200K" ;;
+      quota)   printf '%s' "82%·45%" ;;
+      cost)    printf '%s' '$4' ;;
+    esac
+  }
+  local lnum=1 first=true prev=""
+  printf '   Line %d: ' "$lnum"
+  for tok in $layout; do
+    if [ "$tok" = "|" ]; then
+      printf '\n   Line %d: ' "$(( ++lnum ))"
+      first=true; prev=""; continue
+    fi
+    local val; val=$(_ph "$tok")
+    [ -z "$val" ] && continue
+    if [ "$first" = "false" ]; then
+      [ "$tok" = "branch" ] && [ "$prev" = "path" ] && printf ' · ' || printf ' │ '
+    fi
+    printf '%s' "$val"
+    first=false; prev="$tok"
+  done
+  printf '\n'
+}
+
+# ── Layout selector ───────────────────────────────────────────────────────────
+select_layout() {
+  printf '\n%s\n' "$(_bold 'Statusline layout:')"
+  printf '%s\n\n' "$(_dim 'Elements: path branch commit pr ci model version vim agent context quota cost  |=line break')"
+
+  local -a plabels=(
+    "Default    2 lines — git/model top, metrics bottom"
+    "Compact    1 line  — everything"
+    "Flipped    2 lines — metrics top, git/model bottom"
+  )
+  local -a pvalues=(
+    "path branch commit pr ci model version vim agent | context quota cost"
+    "path branch commit pr ci model version vim agent context quota cost"
+    "context quota cost | path branch commit pr ci model version vim agent"
+  )
+
+  local cur="${LAYOUT:-${pvalues[0]}}"
+  local i
+  for i in 0 1 2; do
+    printf '  %s %s\n' "$(_bold "$(( i + 1 )).")" "${plabels[$i]}"
+    _prev_layout "${pvalues[$i]}"
+    printf '\n'
+  done
+
+  printf '  %s\n' "$(_bold 'Current:')"
+  printf '  %s\n' "$(_dim "$cur")"
+  _prev_layout "$cur"
+
+  printf '\n  %s' "Enter 1-3, a custom layout, or Enter to keep: "
+  local input
+  read -r input </dev/tty || true
+
+  local _valid_elements="path branch commit pr ci model version vim agent context quota cost"
+  case "$input" in
+    1|2|3) LAYOUT="${pvalues[$(( input - 1 ))]}" ;;
+    "")    ;; # keep
+    *)
+      local _bad=false _tok
+      for _tok in $input; do
+        if [ "$_tok" != "|" ] && [[ " $_valid_elements " != *" $_tok "* ]]; then
+          _warn "Unknown element '$_tok' — layout unchanged"
+          _bad=true; break
+        fi
+      done
+      if [ "$_bad" = "false" ]; then
+        LAYOUT="$input"
+        printf '\n  Preview:\n'
+        _prev_layout "$LAYOUT"
+      fi ;;
+  esac
+}
+
 # ── Write config ─────────────────────────────────────────────────────────────
 write_conf() {
   mkdir -p "$(dirname "$CONF")"
@@ -344,6 +434,7 @@ SHOW_CONTEXT=${SHOW_CONTEXT}
 SHOW_QUOTA=${SHOW_QUOTA}
 SHOW_COST=${SHOW_COST}
 LEADING_NEWLINE=${LEADING_NEWLINE}
+LAYOUT=${LAYOUT}
 
 # ── Options ───────────────────────────────────────────────────────────────────
 BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS}
@@ -405,6 +496,7 @@ fi
 check_deps
 select_features
 select_path_target
+select_layout
 write_conf
 install_script
 update_settings
