@@ -15,7 +15,7 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - **Smart truncation** — long paths show last 2 segments, branch names cap at 25 chars
 - **PR + CI** — open PR number (clickable), "New PR" shortcut, CI status ✓ ✗ ⋯ (all async, never blocks)
 - **Quota tracking** — 5-hour and 7-day usage with time-until-reset, cached and stale-while-revalidated
-- **Context window** — percentage + max size, with warnings at 60% and 80%
+- **Context window** — percentage + max size, with ⚠️ / 🚨 warnings at 60% and 80%
 - **Dirty indicator** — ·N shows count of modified/staged files after branch name
 
 ## Requirements
@@ -47,7 +47,7 @@ The installer will:
 Run the installer again at any time to change settings. Changes take effect on the next Claude Code response — no restart needed.
 
 ```sh
-bash ~/.claude/statusline-install.sh
+curl -fsSL https://raw.githubusercontent.com/gradigit/clickline/main/install.sh | bash
 # or, if you cloned the repo:
 bash install.sh
 ```
@@ -95,9 +95,11 @@ Requires `pip install textual`. Falls back to the bash wizard if Textual is not 
 | `d` | Delete item from layout |
 | `Space` | Toggle element on/off (in Elements pane) |
 | `o` | Open options panel |
+| `p` | Apply preset (Minimal, Clean, Standard, Developer, Full) |
 | `t` | Switch color theme |
 | `c` | Add custom element |
 | `r` | Add repo item (.clickline) |
+| `?` | Show help |
 
 ## What's clickable
 
@@ -276,6 +278,7 @@ SHOW_VERSION=false       # Claude Code version
 SHOW_CONTEXT=true
 SHOW_QUOTA=true
 SHOW_COST=true
+LEADING_NEWLINE=false    # blank line before the statusline
 
 # Theme
 THEME=catppuccin-mocha   # see Themes section for full list

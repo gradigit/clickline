@@ -1,0 +1,28 @@
+last_synced: "2026-02-20"
+files:
+  - path: CLAUDE.md
+    type: project-context
+    last_updated: "2026-02-20"
+    references:
+      - statusline.sh
+      - configure.py
+      - install.sh
+      - clickline.conf.default
+      - skills/clickline-custom/SKILL.md
+  - path: README.md
+    type: readme
+    last_updated: "2026-02-20"
+    references:
+      - statusline.sh
+      - configure.py
+      - install.sh
+      - clickline.conf.default
+  - path: skills/clickline-custom/SKILL.md
+    type: skill
+    last_updated: "2026-02-20"
+  - path: skills/clickline-custom/EVALUATIONS.md
+    type: evaluations
+    last_updated: "2026-02-20"
+  - path: skills/clickline-custom/CHANGELOG.md
+    type: changelog
+    last_updated: "2026-02-20"
