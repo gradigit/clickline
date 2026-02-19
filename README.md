@@ -10,11 +10,12 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - **Configurable layout** — split elements across one or two lines, reorder freely, toggle each on/off
 - **10 color themes** — Catppuccin, Dracula, Tokyo Night, Gruvbox, Nord, Solarized, One Dark, Rosé Pine
 - **Custom items** — add your own shell-driven statusline segments with caching and conditional display
+- **Per-repo items** — `.clickline` file for repo-local service links (Railway, Vercel, Supabase, etc.), shareable via git
 - **Interactive configurator** — TUI (Textual) or bash wizard to choose elements, theme, and layout
 - **Smart truncation** — long paths show last 2 segments, branch names cap at 25 chars
 - **PR + CI** — open PR number (clickable), "New PR" shortcut, CI status ✓ ✗ ⋯ (all async, never blocks)
 - **Quota tracking** — 5-hour and 7-day usage with time-until-reset, cached and stale-while-revalidated
-- **Context window** — percentage + max size, with ⚠️ / 🚨 warnings at 60% and 80%
+- **Context window** — percentage + max size, with warnings at 60% and 80%
 - **Dirty indicator** — ·N shows count of modified/staged files after branch name
 
 ## Requirements
@@ -24,6 +25,7 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - `jq`, `git`, `curl`
 - macOS (uses BSD `date` and `security` keychain for OAuth token)
 - `gh` CLI — optional, needed for PR and CI features
+- `python3` + `textual` — optional, for the graphical configurator (`pip install textual`); falls back to a text wizard
 
 ## Installation
 
@@ -80,6 +82,23 @@ python3 ~/.claude/clickline-configure.py
 
 Requires `pip install textual`. Falls back to the bash wizard if Textual is not installed.
 
+### TUI hotkeys
+
+| Key | Action |
+|---|---|
+| `s` | Save config and exit |
+| `q` / `Escape` | Quit without saving |
+| `Tab` | Switch between Layout and Elements panes |
+| `↑` `↓` | Navigate items |
+| `Shift+↑` `Shift+↓` | Reorder items in layout |
+| `n` | Insert line break |
+| `d` | Delete item from layout |
+| `Space` | Toggle element on/off (in Elements pane) |
+| `o` | Open options panel |
+| `t` | Switch color theme |
+| `c` | Add custom element |
+| `r` | Add repo item (.clickline) |
+
 ## What's clickable
 
 | Element | Destination |
@@ -131,7 +150,15 @@ Each theme provides 10 semantic color slots (label, sep, dim, sapphire, lavender
 
 ## Custom items
 
-Add custom statusline segments by creating `~/.claude/clickline-custom.json`:
+Add your own statusline elements — service links, status indicators, or static labels.
+
+**Global items** are stored in `~/.claude/clickline-custom.json` and appear in every repo.
+
+**Per-repo items** are stored in `.clickline` at the repo root and only appear in that repo. Repo items override global items with the same name. You can commit `.clickline` to share service links with your team (add it to `.gitignore` if URLs are sensitive).
+
+Use the `/clickline-custom` skill for interactive setup, or the TUI configurator (`c` for global, `r` for repo item).
+
+Both files use the same JSON format:
 
 ```json
 {
@@ -160,6 +187,8 @@ LAYOUT=path branch pr custom_clock | context quota cost
 | `link` | No | OSC-8 URL — supports `{dir}` and `{branch}` placeholders |
 | `cache_ttl` | No | Seconds to cache `cmd` output (default: 30) |
 | `condition` | No | Shell command that must exit 0 for the item to appear |
+
+Adjacent custom items render with dot separators (` · `) instead of pipe separators (` │ `).
 
 ### Sample custom items
 

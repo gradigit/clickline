@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -250,6 +251,8 @@ class Config:
     ci_cache_ttl:     int  = 30
     quota_cache_ttl:  int  = 60
     custom_items:     dict[str, CustomItem] = field(default_factory=dict)
+    repo_items:       dict[str, CustomItem] = field(default_factory=dict)   # per-repo
+    repo_path:        Path | None = None                                     # detected .clickline path
 
     # ── load ────────────────────────────────────────────────────────────────
     @classmethod
@@ -292,6 +295,24 @@ class Config:
                     cfg.custom_items[name] = CustomItem(name=name, **data)
             except (json.JSONDecodeError, TypeError):
                 pass
+        # Detect repo root for .clickline
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                capture_output=True, text=True, timeout=2,
+            )
+            git_root = result.stdout.strip() if result.returncode == 0 else ""
+        except Exception:
+            git_root = ""
+        cfg.repo_path = Path(git_root) / ".clickline" if git_root else Path.cwd() / ".clickline"
+        if cfg.repo_path.exists():
+            try:
+                raw = json.loads(cfg.repo_path.read_text())
+                for name, data in raw.items():
+                    full_name = f"custom_{name}" if not name.startswith("custom_") else name
+                    cfg.repo_items[full_name] = CustomItem(name=full_name, **data)
+            except (json.JSONDecodeError, TypeError):
+                pass
         return cfg
 
     # ── save ────────────────────────────────────────────────────────────────
@@ -328,6 +349,12 @@ class Config:
                  for n, item in self.custom_items.items()},
                 indent=2
             ) + "\n")
+        if self.repo_items and self.repo_path:
+            self.repo_path.write_text(json.dumps(
+                {n.removeprefix("custom_"): {k: v for k, v in vars(item).items() if k != "name"}
+                 for n, item in self.repo_items.items()},
+                indent=2
+            ) + "\n")
 
 # ── Preview renderer ──────────────────────────────────────────────────────────
 def build_preview(cfg: Config) -> Text:
@@ -345,6 +372,8 @@ def build_preview(cfg: Config) -> Text:
             return P.get(BY_NAME[name].color, "#cccccc")
         if name in cfg.custom_items:
             return P.get(cfg.custom_items[name].color, "#444444")
+        if name in cfg.repo_items:
+            return P.get(cfg.repo_items[name].color, "#444444")
         return "#cccccc"
 
     def sample_for(name: str) -> str:
@@ -352,6 +381,8 @@ def build_preview(cfg: Config) -> Text:
             return SAMPLES[name]
         if name in cfg.custom_items:
             return cfg.custom_items[name].label
+        if name in cfg.repo_items:
+            return cfg.repo_items[name].label
         return name
 
     def elem_enabled(name: str) -> bool:
@@ -381,6 +412,8 @@ def build_preview(cfg: Config) -> Text:
 
         if not first_on_line:
             if tok == "branch" and prev == "path":
+                current.append_text(dot)
+            elif tok.startswith("custom_") and prev.startswith("custom_"):
                 current.append_text(dot)
             else:
                 current.append_text(sep)
@@ -672,12 +705,17 @@ class CustomItemDialog(Container):
     """Inline form for adding a custom statusline item."""
 
     class Submitted(Message):
-        def __init__(self, item: CustomItem) -> None:
+        def __init__(self, item: CustomItem, repo: bool = False) -> None:
             super().__init__()
             self.item = item
+            self.repo = repo
 
     class Cancelled(Message):
         pass
+
+    def __init__(self, repo: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._repo = repo
 
     DEFAULT_CSS = """
     CustomItemDialog {
@@ -722,7 +760,8 @@ class CustomItemDialog(Container):
     """
 
     def compose(self) -> ComposeResult:
-        yield Label("Custom item name (identifier, no spaces):")
+        title = "Repo item name:" if self._repo else "Custom item name (identifier, no spaces):"
+        yield Label(title)
         yield Input(placeholder="e.g. kube-ctx",  id="ci-name")
         yield Label("Display label:")
         yield Input(placeholder="e.g. ⎈ k8s-prod", id="ci-label")
@@ -750,7 +789,8 @@ class CustomItemDialog(Container):
             self.query_one("#ci-label", Input).value = name
             label = name
         self.post_message(self.Submitted(
-            CustomItem(name=f"custom_{name}", label=label, color=color, cmd=cmd, link=link)
+            CustomItem(name=f"custom_{name}", label=label, color=color, cmd=cmd, link=link),
+            repo=self._repo,
         ))
 
     @on(Button.Pressed, "#ci-cancel")
@@ -997,6 +1037,25 @@ class ClicklineApp(App[None]):
         background: #333333;
         color: #888888;
     }
+
+    /* ── Repo item button ── */
+    #btn-add-repo {
+        margin-top: 0;
+        width: 100%;
+        background: #252525;
+        color: #666666;
+        border: none;
+        min-height: 1;
+        height: 1;
+    }
+    #btn-add-repo:hover {
+        background: #333333;
+        color: #888888;
+    }
+    #btn-add-repo:focus {
+        background: #333333;
+        color: #888888;
+    }
     """
 
     BINDINGS: ClassVar = [
@@ -1007,6 +1066,7 @@ class ClicklineApp(App[None]):
         Binding("t",      "focus_themes",   "t Themes"),
         Binding("o",      "toggle_options", "o Options"),
         Binding("c",      "add_custom",     "c Custom"),
+        Binding("r",      "add_repo",       "r Repo item"),
         Binding("tab",    "focus_next",     "Tab Switch pane", show=True),
         Binding("shift+tab", "focus_previous", show=False),
         Binding("escape", "cancel_dialog",  show=False),
@@ -1066,6 +1126,7 @@ class ClicklineApp(App[None]):
                 yield Label("ELEMENTS  \u2502  Space toggle", id="library-label")
                 yield self._build_library()
                 yield Button("+ Custom element", id="btn-add-custom")
+                yield Button("+ Repo item (.clickline)", id="btn-add-repo")
 
         yield Footer()
 
@@ -1081,6 +1142,9 @@ class ClicklineApp(App[None]):
         for item in self.cfg.custom_items.values():
             checked = item.name in in_layout
             selections.append(Selection(f"{item.label} [[custom]]", item.name, checked))
+        for item in self.cfg.repo_items.values():
+            checked = item.name in in_layout
+            selections.append(Selection(f"{item.label} [[repo]]", item.name, checked))
         return SelectionList[str](*selections, id="library")
 
     # ── on_mount ────────────────────────────────────────────────────────
@@ -1149,6 +1213,13 @@ class ClicklineApp(App[None]):
         self.query_one("#pane-editor").mount(dialog)
         dialog.query_one("#ci-name", Input).focus()
 
+    def action_add_repo(self) -> None:
+        if self.query("#custom-dialog"):
+            return
+        dialog = CustomItemDialog(repo=True, id="custom-dialog")
+        self.query_one("#pane-editor").mount(dialog)
+        dialog.query_one("#ci-name", Input).focus()
+
     def action_cancel_dialog(self) -> None:
         for d in self.query("#custom-dialog"):
             d.remove()
@@ -1182,6 +1253,7 @@ class ClicklineApp(App[None]):
             "p                presets\n"
             "o                options panel\n"
             "c                custom item\n"
+            "r                repo item\n"
             "s                save\n"
             "q                quit",
             title="Keyboard shortcuts",
@@ -1231,18 +1303,26 @@ class ClicklineApp(App[None]):
             self.query_one("#editor-widget", LayoutEditor).refresh()
             self.notify(f"Theme: {theme_name} — press s to save", timeout=4)
 
-    # ── + Custom button click ────────────────────────────────────────────
+    # ── + Custom / Repo button clicks ────────────────────────────────────
     @on(Button.Pressed, "#btn-add-custom")
     def _btn_add_custom(self, _: Button.Pressed) -> None:
         self.action_add_custom()
+
+    @on(Button.Pressed, "#btn-add-repo")
+    def _btn_add_repo(self, _: Button.Pressed) -> None:
+        self.action_add_repo()
 
     # ── custom item dialog handlers ──────────────────────────────────────
     @on(CustomItemDialog.Submitted)
     def _custom_submitted(self, event: CustomItemDialog.Submitted) -> None:
         item = event.item
-        self.cfg.custom_items[item.name] = item
+        tag = "repo" if event.repo else "custom"
+        if event.repo:
+            self.cfg.repo_items[item.name] = item
+        else:
+            self.cfg.custom_items[item.name] = item
         lib = self.query_one("#library", SelectionList)
-        lib.add_option(Selection(f"{item.label} [[custom]]", item.name, True))
+        lib.add_option(Selection(f"{item.label} [[{tag}]]", item.name, True))
         editor = self.query_one("#editor-widget", LayoutEditor)
         editor.add_element(item.name)
         self.action_cancel_dialog()

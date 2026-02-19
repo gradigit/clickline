@@ -286,7 +286,7 @@ select_features() {
     done
     printf '\nEnter numbers to toggle (e.g. 3 5 9), or Enter to keep: '
     local input_nums
-    read -r input_nums </dev/tty
+    read -r input_nums </dev/tty || true
     if [ -n "$input_nums" ]; then
       for n in $input_nums; do
         if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#items[@]}" ]; then
@@ -318,7 +318,7 @@ select_path_target() {
 
   printf '\nEnter choice [%d]: ' "$default_num"
   local choice
-  read -r choice </dev/tty
+  read -r choice </dev/tty || true
   choice=${choice:-$default_num}
   case "$choice" in
     1) PATH_LINK_TARGET=finder ;;
@@ -510,6 +510,12 @@ install_script() {
     curl -fsSL "https://raw.githubusercontent.com/gradigit/clickline/main/configure.py" \
       -o "$CONFIGURE" 2>/dev/null || true
   fi
+
+  # Install clickline-custom skill if present
+  if [ -f "$SCRIPT_DIR/skills/clickline-custom/SKILL.md" ]; then
+    mkdir -p "$HOME/.claude/skills/clickline-custom"
+    cp "$SCRIPT_DIR/skills/clickline-custom/SKILL.md" "$HOME/.claude/skills/clickline-custom/SKILL.md"
+  fi
 }
 
 # ── Update ~/.claude/settings.json ───────────────────────────────────────────
@@ -582,6 +588,4 @@ else
   printf 'The statusline will appear at the bottom of your Claude Code terminal.\n'
   printf 'Run %s to reconfigure at any time.\n\n' "$(_dim 'bash install.sh')"
 fi
-printf 'Tips:\n'
-printf '  %s — full TUI editor\n'        "$(_dim 'python3 ~/.claude/clickline-configure.py')"
 printf '  %s — quota troubleshooter\n\n' "$(_dim 'bash install.sh --quota')"

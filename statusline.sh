@@ -168,6 +168,20 @@ fi
 git_root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)
 repo_hash=$(_md5 "${git_root:-$dir}")
 
+# ── Custom items (merged: repo-local .clickline overrides global) ────────────
+_custom_merged=""
+_cg=""; _cr=""
+[ -f "$HOME/.claude/clickline-custom.json" ] && _cg=$(cat "$HOME/.claude/clickline-custom.json" 2>/dev/null)
+_cl_root="${git_root:-$dir}"
+[ -f "$_cl_root/.clickline" ] && _cr=$(cat "$_cl_root/.clickline" 2>/dev/null)
+if [ -n "$_cg" ] && [ -n "$_cr" ]; then
+  _custom_merged=$(printf '%s\n%s' "$_cg" "$_cr" | jq -s '.[0] * .[1]' 2>/dev/null)
+elif [ -n "$_cr" ]; then
+  _custom_merged="$_cr"
+elif [ -n "$_cg" ]; then
+  _custom_merged="$_cg"
+fi
+
 repo_path=""
 github_branch_url=""
 if [ -n "$git_branch_full" ]; then
@@ -588,11 +602,10 @@ render_element() {
       fi
       printf '%s' "${RST}" ;;
     custom_*)
-      # Custom items defined in ~/.claude/clickline-custom.json
+      # Custom items from merged global + repo-local sources
       local _cname="${_e#custom_}"
-      local _custom_json="$HOME/.claude/clickline-custom.json"
-      [ -f "$_custom_json" ] || return
-      local _def; _def=$(jq -r --arg n "$_cname" '.[$n] // empty' "$_custom_json" 2>/dev/null)
+      [ -z "$_custom_merged" ] && return
+      local _def; _def=$(printf '%s' "$_custom_merged" | jq -r --arg n "$_cname" '.[$n] // empty' 2>/dev/null)
       [ -z "$_def" ] && return
       # Check condition (if set, shell command must exit 0)
       local _cond; _cond=$(printf '%s' "$_def" | jq -r '.condition // ""' 2>/dev/null)
@@ -664,6 +677,8 @@ for _tok in "${_tokens[@]}"; do
   [ -z "$_out" ] && continue
   if [ "$_first" = "false" ]; then
     if [ "$_tok" = "branch" ] && [ "$_prev" = "path" ]; then
+      printf '%s' "$DOT"
+    elif [[ "$_tok" == custom_* ]] && [[ "$_prev" == custom_* ]]; then
       printf '%s' "$DOT"
     else
       printf '%s' "$S"
