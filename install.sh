@@ -27,14 +27,17 @@ _fail()   { printf '  %s %s\n' "$(_red '✗')" "$1"; }
 # ── Dependency check ─────────────────────────────────────────────────────────
 check_deps() {
   printf '\n%s\n' "$(_bold 'Checking dependencies...')"
-  local ok=true
+
+  local -a missing_required=()
+  local -a missing_installable=()
 
   for dep in jq git curl; do
     if command -v "$dep" >/dev/null 2>&1; then
       _ok "$dep $(_dim '(required)')"
     else
-      _fail "$dep $(_dim '(required — please install)')"
-      ok=false
+      _fail "$dep $(_dim '(required)')"
+      missing_required+=("$dep")
+      missing_installable+=("$dep")
     fi
   done
 
@@ -52,9 +55,38 @@ check_deps() {
     _ok "fzf $(_dim '(optional — interactive selector)')"
   else
     _warn "fzf $(_dim '(optional — using numbered menu instead)')"
+    missing_installable+=("fzf")
   fi
 
-  if [ "$ok" = "false" ]; then
+  # Offer to install missing packages via brew
+  if [ ${#missing_installable[@]} -gt 0 ] && command -v brew >/dev/null 2>&1; then
+    printf '\n%s %s\n' "$(_peach 'Missing:')" "${missing_installable[*]}"
+    printf 'Install via brew? [Y/n]: '
+    local answer
+    read -r answer </dev/tty || true
+    if [[ "${answer:-Y}" =~ ^[Yy]$ ]]; then
+      for dep in "${missing_installable[@]}"; do
+        printf '\n%s\n' "$(_bold "Installing $dep...")"
+        if brew install "$dep" >/dev/tty 2>&1; then
+          _ok "$dep installed"
+        else
+          _fail "$dep install failed"
+        fi
+      done
+      # Re-check required deps after install attempts
+      missing_required=()
+      for dep in jq git curl; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+          missing_required+=("$dep")
+        fi
+      done
+    fi
+  elif [ ${#missing_required[@]} -gt 0 ]; then
+    printf '\nInstall missing required dependencies and re-run.\n'
+    exit 1
+  fi
+
+  if [ ${#missing_required[@]} -gt 0 ]; then
     printf '\nInstall missing required dependencies and re-run.\n'
     exit 1
   fi
