@@ -54,7 +54,10 @@ check_deps() {
     _warn "fzf $(_dim '(optional — using numbered menu instead)')"
   fi
 
-  [ "$ok" = "false" ] && { printf '\nInstall missing required dependencies and re-run.\n'; exit 1; }
+  if [ "$ok" = "false" ]; then
+    printf '\nInstall missing required dependencies and re-run.\n'
+    exit 1
+  fi
 }
 
 # ── Quota troubleshooter ─────────────────────────────────────────────────────
