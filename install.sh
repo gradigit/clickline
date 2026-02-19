@@ -200,7 +200,10 @@ load_conf() {
 }
 
 # shellcheck source=/dev/null
+# Temporarily disable strict mode — config may contain unquoted | in LAYOUT
+set +euo pipefail
 [ -f "$CONF" ] && source "$CONF" 2>/dev/null
+set -euo pipefail
 load_conf
 
 # ── fzf version check (requires >= 0.40.0 for load binding) ──────────────────
@@ -474,7 +477,7 @@ SHOW_CONTEXT=${SHOW_CONTEXT}
 SHOW_QUOTA=${SHOW_QUOTA}
 SHOW_COST=${SHOW_COST}
 LEADING_NEWLINE=${LEADING_NEWLINE}
-LAYOUT=${LAYOUT}
+LAYOUT='${LAYOUT}'
 
 # ── Options ───────────────────────────────────────────────────────────────────
 BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS}

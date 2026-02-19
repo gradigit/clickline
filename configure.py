@@ -261,7 +261,7 @@ class Config:
                 if not line or line.startswith("#") or "=" not in line:
                     continue
                 key, _, val = line.partition("=")
-                key, val = key.strip(), val.strip()
+                key, val = key.strip(), val.strip().strip("'\"")
                 if key in cfg.show_flags:
                     cfg.show_flags[key] = val.lower() == "true"
                 elif key == "LEADING_NEWLINE":
@@ -308,7 +308,7 @@ class Config:
         for k, v in self.show_flags.items():
             out.append(f"{k}={'true' if v else 'false'}")
         out.append(f"LEADING_NEWLINE={'true' if self.leading_newline else 'false'}")
-        out.append(f"LAYOUT={layout_str}")
+        out.append(f"LAYOUT='{layout_str}'")
         out.append(f"THEME={self.theme}")
         out += [
             "",
