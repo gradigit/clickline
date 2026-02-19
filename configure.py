@@ -44,19 +44,36 @@ from textual.widgets._selection_list import Selection
 
 # ── Catppuccin Mocha ──────────────────────────────────────────────────────────
 PALETTE = {
-    "sapphire": "#74c7ec",
-    "lavender": "#b4befe",
-    "mauve":    "#cba6f7",
-    "gold":     "#f9e2af",
-    "green":    "#a6e3a1",
-    "peach":    "#fab387",
-    "red":      "#f38ba8",
-    "dim":      "#45475a",
-    "sep":      "#585b70",
-    "label":    "#6c7086",
-    "surface1": "#313244",
-    "base":     "#1e1e2e",
-    "text":     "#cdd6f4",
+    # accents
+    "sapphire":  "#74c7ec",
+    "lavender":  "#b4befe",
+    "blue":      "#89b4fa",
+    "mauve":     "#cba6f7",
+    "pink":      "#f5c2e7",
+    "gold":      "#f9e2af",
+    "green":     "#a6e3a1",
+    "teal":      "#94e2d5",
+    "peach":     "#fab387",
+    "red":       "#f38ba8",
+    "flamingo":  "#f2cdcd",
+    "rosewater": "#f5e0dc",
+    # neutrals
+    "text":      "#cdd6f4",
+    "subtext1":  "#bac2de",
+    "subtext0":  "#a6adc8",
+    "overlay2":  "#9399b2",
+    "overlay1":  "#7f849c",
+    "overlay0":  "#6c7086",
+    "surface2":  "#585b70",
+    "surface1":  "#45475a",
+    "surface0":  "#313244",
+    "base":      "#1e1e2e",
+    "mantle":    "#181825",
+    "crust":     "#11111b",
+    # semantic aliases used by render code
+    "dim":       "#45475a",
+    "sep":       "#585b70",
+    "label":     "#6c7086",
 }
 
 # ── Built-in element catalogue ────────────────────────────────────────────────
@@ -467,12 +484,43 @@ class CustomItemDialog(Container):
     DEFAULT_CSS = """
     CustomItemDialog {
         height: auto;
-        border: solid $accent;
+        background: #181825;
+        border: tall #cba6f7 40%;
         padding: 1 2;
         margin: 1;
     }
-    CustomItemDialog Label { margin-bottom: 0; color: $text-muted; }
-    CustomItemDialog Input { margin-bottom: 1; }
+    CustomItemDialog Label {
+        margin-bottom: 0;
+        color: #a6adc8;
+    }
+    CustomItemDialog Input {
+        margin-bottom: 1;
+        background: #313244;
+        color: #cdd6f4;
+        border: tall #45475a;
+    }
+    CustomItemDialog Input:focus {
+        border: tall #cba6f7;
+    }
+    CustomItemDialog Button {
+        margin-right: 1;
+    }
+    CustomItemDialog #ci-ok {
+        background: #cba6f7;
+        color: #1e1e2e;
+        border: none;
+    }
+    CustomItemDialog #ci-ok:hover {
+        background: #b4befe;
+    }
+    CustomItemDialog #ci-cancel {
+        background: #313244;
+        color: #a6adc8;
+        border: none;
+    }
+    CustomItemDialog #ci-cancel:hover {
+        background: #45475a;
+    }
     """
 
     def compose(self) -> ComposeResult:
@@ -518,15 +566,30 @@ class OptionsPanel(Container):
     DEFAULT_CSS = """
     OptionsPanel {
         height: auto;
-        border: solid $surface3;
-        padding: 0 1;
+        background: #181825;
+        border: tall #45475a;
+        padding: 1 2;
         margin: 0 0 1 0;
         display: none;
     }
     OptionsPanel.visible { display: block; }
-    OptionsPanel Label { color: $text-muted; }
-    OptionsPanel Input { width: 12; }
-    OptionsPanel Horizontal { height: auto; margin-bottom: 1; align: left middle; }
+    OptionsPanel Label {
+        color: #a6adc8;
+    }
+    OptionsPanel Input {
+        width: 12;
+        background: #313244;
+        color: #cdd6f4;
+        border: tall #45475a;
+    }
+    OptionsPanel Input:focus {
+        border: tall #cba6f7;
+    }
+    OptionsPanel Horizontal {
+        height: auto;
+        margin-bottom: 1;
+        align: left middle;
+    }
     """
 
     def compose(self) -> ComposeResult:
@@ -575,28 +638,70 @@ class ClicklineApp(App[None]):
         background: #1e1e2e;
     }
 
-    /* 3-pane horizontal split */
+    Header {
+        background: #181825;
+        color: #cba6f7;
+        dock: top;
+        height: 1;
+    }
+
+    Footer {
+        background: #181825;
+        color: #585b70;
+    }
+    Footer > .footer--key {
+        background: #313244;
+        color: #cba6f7;
+    }
+    Footer > .footer--description {
+        color: #a6adc8;
+    }
+
+    /* ── 3-pane horizontal split ── */
     #main-row {
         height: 1fr;
         layout: horizontal;
     }
 
+    /* ── Library pane (left) ── */
     #pane-library {
         width: 28;
         min-width: 22;
-        border: solid #585b70;
+        background: #181825;
+        border-right: tall #45475a;
         padding: 0 1;
+    }
+    #pane-library:focus-within {
+        border-right: tall #cba6f7 40%;
     }
     #pane-library > Label {
         color: #6c7086;
+        text-style: bold;
         margin-bottom: 1;
     }
 
+    SelectionList {
+        background: #181825;
+        border: none;
+        height: 1fr;
+    }
+    SelectionList:focus {
+        border: none;
+    }
+    SelectionList > .selection-list--button {
+        color: #cdd6f4;
+    }
+
+    /* ── Layout editor pane (center) ── */
     #pane-editor {
         width: 1fr;
-        border: solid #585b70;
+        background: #1e1e2e;
+        border-right: tall #45475a;
         padding: 0 1;
         overflow-y: auto;
+    }
+    #pane-editor:focus-within {
+        border-right: tall #cba6f7 40%;
     }
     #pane-editor > Label {
         color: #6c7086;
@@ -605,38 +710,61 @@ class ClicklineApp(App[None]):
     #editor-widget {
         height: auto;
     }
+    #editor-widget:focus {
+        background: #1e1e2e;
+    }
 
+    /* ── Preview pane (right) ── */
     #pane-preview {
-        width: 36;
-        min-width: 28;
-        border: solid #585b70;
-        padding: 0 1;
+        width: 38;
+        min-width: 30;
+        background: #181825;
+        padding: 1 2;
     }
     #pane-preview > Label {
         color: #6c7086;
+        text-style: bold;
         margin-bottom: 1;
     }
     #preview-text {
         color: #cdd6f4;
+        padding: 1 0;
     }
 
+    /* ── Custom item button ── */
     #btn-add-custom {
         margin-top: 1;
         width: 100%;
         background: #313244;
         color: #cba6f7;
-        border: none;
+        text-style: bold;
+        border: tall #45475a;
+        min-height: 3;
     }
-    #btn-add-custom:focus { background: #45475a; }
+    #btn-add-custom:hover {
+        background: #45475a;
+        color: #b4befe;
+    }
+    #btn-add-custom:focus {
+        background: #45475a;
+        border: tall #cba6f7;
+    }
 
+    /* ── Status bar ── */
     #status-bar {
         height: 1;
-        background: #313244;
-        color: #6c7086;
-        padding: 0 1;
+        background: #11111b;
+        color: #585b70;
+        padding: 0 2;
+        dock: bottom;
     }
-    #status-bar.saved   { color: #a6e3a1; }
-    #status-bar.warning { color: #fab387; }
+    #status-bar.saved {
+        color: #a6e3a1;
+        text-style: bold;
+    }
+    #status-bar.warning {
+        color: #fab387;
+    }
     """
 
     BINDINGS: ClassVar = [
