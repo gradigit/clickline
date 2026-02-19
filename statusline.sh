@@ -466,6 +466,61 @@ render_element() {
         printf '%s' "$f_cost"
       fi
       printf '%s' "${RST}" ;;
+    custom_*)
+      # Custom items defined in ~/.claude/clickline-custom.json
+      local _cname="${_e#custom_}"
+      local _custom_json="$HOME/.claude/clickline-custom.json"
+      [ -f "$_custom_json" ] || return
+      local _def; _def=$(jq -r --arg n "$_cname" '.[$n] // empty' "$_custom_json" 2>/dev/null)
+      [ -z "$_def" ] && return
+      # Check condition (if set, shell command must exit 0)
+      local _cond; _cond=$(printf '%s' "$_def" | jq -r '.condition // ""' 2>/dev/null)
+      if [ -n "$_cond" ]; then
+        eval "$_cond" >/dev/null 2>&1 || return
+      fi
+      # Get label: from cmd output (cached) or static label
+      local _cmd; _cmd=$(printf '%s' "$_def" | jq -r '.cmd // ""' 2>/dev/null)
+      local _label
+      if [ -n "$_cmd" ]; then
+        local _ttl; _ttl=$(printf '%s' "$_def" | jq -r '.cache_ttl // 30' 2>/dev/null)
+        local _ccache="/tmp/.clickline-custom-${_cname}"
+        if [ -f "$_ccache" ]; then
+          local _cage=$(( now_epoch - $(cut -d' ' -f1 "$_ccache") ))
+          if [ "$_cage" -lt "${_ttl:-30}" ]; then
+            _label=$(cut -d' ' -f2- "$_ccache")
+          else
+            ( _out=$(eval "$_cmd" 2>/dev/null | head -c 80)
+              printf '%s %s\n' "$(date +%s)" "$_out" > "$_ccache" ) &
+            _label=$(cut -d' ' -f2- "$_ccache")
+          fi
+        else
+          _label=$(eval "$_cmd" 2>/dev/null | head -c 80 | tr -d '\n')
+          printf '%s %s\n' "$now_epoch" "$_label" > "$_ccache"
+        fi
+      else
+        _label=$(printf '%s' "$_def" | jq -r '.label // ""' 2>/dev/null)
+      fi
+      [ -z "$_label" ] && return
+      # Get color
+      local _ccolor; _ccolor=$(printf '%s' "$_def" | jq -r '.color // "dim"' 2>/dev/null)
+      local _cc
+      case "$_ccolor" in
+        sapphire) _cc="$c_sapphire" ;; lavender) _cc="$c_lavender" ;;
+        mauve)    _cc="$c_mauve"    ;; gold)     _cc="$c_gold"     ;;
+        green)    _cc="$c_green"    ;; peach)    _cc="$c_peach"    ;;
+        red)      _cc="$c_red"      ;; *)        _cc="$c_dim"      ;;
+      esac
+      # Get link
+      local _link; _link=$(printf '%s' "$_def" | jq -r '.link // ""' 2>/dev/null)
+      _link="${_link//\{dir\}/$dir}"
+      _link="${_link//\{branch\}/$git_branch_full}"
+      printf '%s' "$_cc"
+      if [ -n "$_link" ]; then
+        osc_url "$_link" "$_label"
+      else
+        printf '%s' "$_label"
+      fi
+      printf '%s' "${RST}" ;;
   esac
 }
 

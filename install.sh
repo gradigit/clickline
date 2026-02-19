@@ -447,7 +447,7 @@ EOF
   printf '\n%s\n' "$(_green "Config written to $CONF")"
 }
 
-# ── Install statusline.sh ─────────────────────────────────────────────────────
+# ── Install statusline.sh + configure.py ─────────────────────────────────────
 install_script() {
   mkdir -p "$(dirname "$STATUSLINE")"
   if [ -f "$SCRIPT_DIR/statusline.sh" ]; then
@@ -457,6 +457,15 @@ install_script() {
       -o "$STATUSLINE" 2>/dev/null
   fi
   chmod +x "$STATUSLINE"
+
+  # Install configure.py if present
+  local CONFIGURE="$HOME/.claude/clickline-configure.py"
+  if [ -f "$SCRIPT_DIR/configure.py" ]; then
+    cp "$SCRIPT_DIR/configure.py" "$CONFIGURE"
+  elif command -v curl >/dev/null 2>&1; then
+    curl -fsSL "https://raw.githubusercontent.com/gradigit/clickline/main/configure.py" \
+      -o "$CONFIGURE" 2>/dev/null || true
+  fi
 }
 
 # ── Update ~/.claude/settings.json ───────────────────────────────────────────
@@ -493,13 +502,33 @@ else
   printf '%s\n' "$(_bold 'Installing clickline')"
 fi
 
+# Always install the scripts first (statusline.sh + configure.py)
 check_deps
-select_features
-select_path_target
-select_layout
-write_conf
 install_script
 update_settings
+
+# ── Try TUI (Python + Textual) ────────────────────────────────────────────────
+CONFIGURE="$HOME/.claude/clickline-configure.py"
+_tui_available=false
+if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
+  if python3 -c "import textual" >/dev/null 2>&1; then
+    _tui_available=true
+  fi
+fi
+
+if [ "$_tui_available" = "true" ]; then
+  printf '\n%s\n' "$(_green 'Launching configuration TUI...')"
+  python3 "$CONFIGURE"
+else
+  # ── Bash wizard fallback ───────────────────────────────────────────────────
+  if [ "$_tui_available" = "false" ]; then
+    printf '\n%s\n' "$(_dim 'TUI not available — using text wizard (pip install textual for the full TUI)')"
+  fi
+  select_features
+  select_path_target
+  select_layout
+  write_conf
+fi
 
 printf '\n%s\n' "$(_bold 'Done!')"
 if [ "$already_installed" = "true" ]; then
@@ -508,4 +537,6 @@ else
   printf 'The statusline will appear at the bottom of your Claude Code terminal.\n'
   printf 'Run %s to reconfigure at any time.\n\n' "$(_dim 'bash install.sh')"
 fi
-printf 'Tip: %s to troubleshoot quota display.\n\n' "$(_dim 'bash install.sh --quota')"
+printf 'Tips:\n'
+printf '  %s — full TUI editor\n'        "$(_dim 'python3 ~/.claude/clickline-configure.py')"
+printf '  %s — quota troubleshooter\n\n' "$(_dim 'bash install.sh --quota')"
