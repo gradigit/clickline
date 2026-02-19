@@ -251,7 +251,7 @@ The statusline runs fresh on each poll — there is no persistent process. You c
 ```json
 {
   "spinner": {
-    "cmd": "printf '%s' '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' | fold -w3 | sed -n \"$(($(date +%s) % 10 + 1))p\"",
+    "cmd": "printf '%s' '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' | fold -w1 | sed -n \"$(($(date +%s) % 10 + 1))p\"",
     "color": "lavender",
     "label": "spin",
     "cache_ttl": 1
