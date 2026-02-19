@@ -7,6 +7,7 @@ Compact, clickable 2-line statusline for [Claude Code](https://claude.ai/code). 
 ## Features
 
 - **OSC-8 hyperlinks** — path opens in Finder/editor, branch opens on GitHub, quota opens claude.ai, cost opens your session transcript
+- **Per-repo service links** — add clickable links to Railway, Vercel, Supabase, and more via `.clickline`
 - **2-line layout** — directory · branch · model on line 1; context window · quota · cost on line 2
 - **Catppuccin Mocha** palette with semantic colors — green → yellow → red as limits fill
 - **Config-driven** — toggle any element on/off via a config file, no script editing
@@ -85,17 +86,18 @@ Then add to `~/.claude/settings.json`:
 | Model name | `https://docs.anthropic.com/en/docs/about-claude/models/overview` |
 | Version | `https://github.com/anthropics/claude-code/releases` |
 | Session cost | `file://` — opens session transcript (JSONL) |
+| Service links | Custom URLs from `.clickline` (Railway, Vercel, Supabase, …) |
 
 OSC-8 links require a terminal that supports them. Ghostty, iTerm2, and WezTerm all do. Cmd+click (macOS) activates the link.
 
 ## Layout
 
 ```
-my-app/src · feat/dark-mode·3 ↑2 │ #42 │ ✓ │ Claude Sonnet 4.6
+my-app/src · feat/dark-mode·3 ↑2 │ #42 │ ✓ │ Claude Sonnet 4.6 │ backend · frontend · db
 35%/200K │ 85% (2h3m) · 61% (3d5h) │ $4
 ```
 
-**Line 1:** `path [· branch [·dirty] [↑N ↓N]] [│ commit] [│ PR] [│ CI] [│ model [thinking]] [│ version] [│ VIM] [│ agent]`
+**Line 1:** `path [· branch [·dirty] [↑N ↓N]] [│ commit] [│ PR] [│ CI] [│ model [thinking]] [│ version] [│ VIM] [│ agent] [│ service links]`
 
 **Line 2:** `ctx%/maxK [warn] │ 5h% (reset) · 7d% (reset) │ $cost`
 
@@ -157,6 +159,26 @@ gh auth login
 Both use a stale-while-revalidate cache — they never block the statusline render. Data appears on the next response after the cache warms (typically 1 response delay on first use for a branch).
 
 PR segment is hidden on the default branch (main/master) since PRs don't apply there.
+
+## Service links
+
+Add clickable links for your deployment and infrastructure services by creating a `.clickline` file in the repository root:
+
+```json
+{
+  "services": [
+    {"label": "backend", "url": "https://myapp.up.railway.app"},
+    {"label": "frontend", "url": "https://myapp.vercel.app"},
+    {"label": "db", "url": "https://supabase.com/dashboard/project/abc123"}
+  ]
+}
+```
+
+Service names appear in the statusline and open the URL on Cmd+click. Services render in list order.
+
+**Interactive setup** — run `/service-links` in Claude Code to add or update links interactively.
+
+Add `.clickline` to `.gitignore` if your dashboard URLs are team-specific or sensitive.
 
 ## License
 

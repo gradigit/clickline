@@ -314,6 +314,7 @@ c_gold='\033[38;2;249;226;175m'     # #f9e2af Yellow
 c_green='\033[38;2;166;227;161m'    # #a6e3a1 Green
 c_peach='\033[38;2;250;179;135m'    # #fab387 Peach
 c_red='\033[38;2;243;139;168m'      # #f38ba8 Red
+c_sky='\033[38;2;137;220;235m'      # #89dceb Sky
 
 status_color() {
   local pct=$1
@@ -332,6 +333,14 @@ osc_url()  { printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$1" "$2"; }
 
 S="${c_sep} │ ${RST}"
 DOT="${c_sep} · ${RST}"
+
+# ── Per-repo service links from .clickline ──
+services_json=""
+service_count=0
+if [ -f "$dir/.clickline" ]; then
+  services_json=$(jq -c '.services // []' "$dir/.clickline" 2>/dev/null)
+  [ -n "$services_json" ] && service_count=$(echo "$services_json" | jq 'length' 2>/dev/null || echo 0)
+fi
 
 exec 2>/dev/null
 
@@ -445,7 +454,19 @@ fi
 
 # Agent name
 [ -n "$agent_name" ] && printf "${S}${c_lavender}%s${RST}" "$agent_name"
-
+if [ "$service_count" -gt 0 ]; then
+  printf "${S}"
+  i=0
+  while [ "$i" -lt "$service_count" ]; do
+    svc_label=$(echo "$services_json" | jq -r ".[$i].label" 2>/dev/null)
+    svc_url=$(echo "$services_json" | jq -r ".[$i].url" 2>/dev/null)
+    [ "$i" -gt 0 ] && printf "${DOT}"
+    printf "${c_sky}"
+    osc_url "$svc_url" "$svc_label"
+    printf "${RST}"
+    i=$((i + 1))
+  done
+fi
 printf '\n'
 
 # ═══════════════════════════════════════════════════════════════════════════════
