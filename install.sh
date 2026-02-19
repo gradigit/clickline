@@ -250,6 +250,7 @@ select_features() {
       fzf --multi --ansi \
         --header=$'Space to toggle, Enter to confirm\nCurrently selected = enabled' \
         --bind "$bind_str" \
+        --bind 'space:toggle' \
         --with-nth 2.. \
         --delimiter $'\t' \
         --height 40% --border 2>/dev/tty) || true
