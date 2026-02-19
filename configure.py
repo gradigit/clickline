@@ -292,7 +292,8 @@ class Config:
             try:
                 raw = json.loads(CUSTOM_PATH.read_text())
                 for name, data in raw.items():
-                    cfg.custom_items[name] = CustomItem(name=name, **data)
+                    full_name = f"custom_{name}" if not name.startswith("custom_") else name
+                    cfg.custom_items[full_name] = CustomItem(name=full_name, **data)
             except (json.JSONDecodeError, TypeError):
                 pass
         # Detect repo root for .clickline
@@ -345,7 +346,7 @@ class Config:
         CONF_PATH.write_text("\n".join(out))
         if self.custom_items:
             CUSTOM_PATH.write_text(json.dumps(
-                {n: {k: v for k, v in vars(item).items() if k != "name"}
+                {n.removeprefix("custom_"): {k: v for k, v in vars(item).items() if k != "name"}
                  for n, item in self.custom_items.items()},
                 indent=2
             ) + "\n")
