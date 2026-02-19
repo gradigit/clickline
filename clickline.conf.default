@@ -1,0 +1,24 @@
+# clickline config — default values
+# Copy to ~/.claude/clickline.conf and edit, or run install.sh
+# Changes take effect on the next Claude Code response (no restart needed)
+
+# ── Features ──────────────────────────────────────────────────────────────────
+SHOW_BRANCH=true
+SHOW_DIRTY=true          # ·N modified/staged files shown after branch name
+SHOW_AHEAD_BEHIND=false  # ↑N ↓N commits ahead/behind remote (requires upstream)
+SHOW_COMMIT=false        # HEAD short hash → GitHub commit page
+SHOW_PR=true             # #N → open PR, or "New PR" → GitHub compare (requires gh)
+SHOW_CI=false            # ✓ ✗ ⋯ → GitHub Actions run (requires gh)
+SHOW_MODEL=true          # model name → Anthropic docs
+SHOW_VERSION=false       # Claude Code version → GitHub releases
+SHOW_CONTEXT=true        # context window percentage + max size
+SHOW_QUOTA=true          # 5h and 7d usage with time-until-reset
+SHOW_COST=true           # session cost → transcript file
+
+# ── Options ───────────────────────────────────────────────────────────────────
+BRANCH_MAX_CHARS=25      # truncate branch names longer than this (appends …)
+PATH_SEGMENTS=2          # show last N path segments (e.g. project/src)
+PATH_LINK_TARGET=finder  # where Cmd+click on path opens: finder | vscode | cursor | none
+PR_CACHE_TTL=60          # seconds before PR cache is refreshed in background
+CI_CACHE_TTL=30          # seconds before CI cache is refreshed in background
+QUOTA_CACHE_TTL=60       # seconds before quota cache is refreshed in background
