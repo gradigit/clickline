@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-}")" && pwd 2>/dev/null || true)"
 CONF="$HOME/.claude/clickline.conf"
 STATUSLINE="$HOME/.claude/statusline.sh"
 SETTINGS="$HOME/.claude/settings.json"
