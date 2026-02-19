@@ -180,19 +180,19 @@ fi
 select_features() {
   printf '\n%s\n' "$(_bold 'Select statusline elements:')"
 
-  # Item format: "VAR_NAME\tLabel"
+  # Item format: VAR_NAME<tab>Label  ($'...' gives real tab)
   local -a items=(
-    "SHOW_BRANCH\tBranch → GitHub"
-    "SHOW_DIRTY\tDirty indicator (·N modified files)"
-    "SHOW_AHEAD_BEHIND\tAhead/Behind (↑N ↓N commits)"
-    "SHOW_COMMIT\tCommit hash → GitHub commit"
-    "SHOW_PR\tPR link (#N or New PR) — requires gh"
-    "SHOW_CI\tCI status (✓ ✗ ⋯) — requires gh"
-    "SHOW_MODEL\tModel name → Anthropic docs"
-    "SHOW_VERSION\tClaude Code version → GitHub releases"
-    "SHOW_CONTEXT\tContext window percentage"
-    "SHOW_QUOTA\tQuota (5h + 7d usage)"
-    "SHOW_COST\tSession cost → transcript"
+    $'SHOW_BRANCH\tBranch → GitHub'
+    $'SHOW_DIRTY\tDirty indicator (·N modified files)'
+    $'SHOW_AHEAD_BEHIND\tAhead/Behind (↑N ↓N commits)'
+    $'SHOW_COMMIT\tCommit hash → GitHub commit'
+    $'SHOW_PR\tPR link (#N or New PR) — requires gh'
+    $'SHOW_CI\tCI status (✓ ✗ ⋯) — requires gh'
+    $'SHOW_MODEL\tModel name → Anthropic docs'
+    $'SHOW_VERSION\tClaude Code version → GitHub releases'
+    $'SHOW_CONTEXT\tContext window percentage'
+    $'SHOW_QUOTA\tQuota (5h + 7d usage)'
+    $'SHOW_COST\tSession cost → transcript'
   )
 
   if [ "$fzf_ok" = "true" ]; then
