@@ -25,7 +25,7 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - `jq`, `git`, `curl`
 - macOS or Linux
 - `gh` CLI — optional, needed for PR and CI features
-- `python3` + `textual` — optional, for the graphical configurator (`pip3 install textual`); falls back to a text wizard
+- `python3` + `textual` — optional, for the graphical configurator (auto-installed via `uv` during install); falls back to a bash wizard
 
 ## Installation
 
@@ -34,13 +34,14 @@ curl -fsSL https://raw.githubusercontent.com/gradigit/clickline/main/install.sh 
 ```
 
 The installer will:
-1. Check dependencies
-2. Let you choose which elements to show (fzf multi-select or numbered menu)
-3. Choose where Cmd+click on the path opens (Finder, VS Code, Cursor, or nothing)
-4. Pick a color theme
-5. Write `~/.claude/clickline.conf` with your settings
-6. Copy `statusline.sh` to `~/.claude/statusline.sh`
-7. Update `~/.claude/settings.json`
+1. Check dependencies (`jq`, `git`, `curl`) and offer to install any missing ones
+2. Launch the TUI configurator (auto-installs [`uv`](https://docs.astral.sh/uv/) + `textual` if needed), or fall back to a bash wizard
+3. Choose a preset (Minimal, Clean, Standard, Developer, Full)
+4. Pick a color theme from 10 options
+5. Choose layout arrangement and path click target
+6. Write `~/.claude/clickline.conf` with your settings
+7. Copy `statusline.sh` to `~/.claude/statusline.sh`
+8. Update `~/.claude/settings.json`
 
 ### Reconfigure
 
@@ -92,7 +93,16 @@ The TUI configurator gives you a live preview, drag-and-drop layout editing, the
 python3 ~/.claude/clickline-configure.py
 ```
 
-Requires `pip install textual`. Falls back to the bash wizard if Textual is not installed.
+The installer auto-installs `uv` and `textual` if needed. To run the configurator manually:
+
+```sh
+# If you have textual installed:
+python3 ~/.claude/clickline-configure.py
+# Otherwise, via uv (no install needed):
+uv run --with textual python3 ~/.claude/clickline-configure.py
+```
+
+Falls back to the bash wizard if Textual is unavailable.
 
 ### TUI hotkeys
 

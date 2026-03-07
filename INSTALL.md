@@ -27,7 +27,7 @@ sudo dnf install -y jq git curl
 
 Optional dependencies (inform the user but don't block install):
 - `gh` — needed for PR and CI statusline features (install: `brew install gh` / `sudo apt install gh` / `sudo dnf install gh`, then `gh auth login`)
-- `python3` + `textual` — needed for the TUI configurator (`pip3 install textual`)
+- `python3` + `textual` — needed for the TUI configurator (the installer auto-installs `uv` + `textual` if missing)
 
 ## Step 1: Download files
 
