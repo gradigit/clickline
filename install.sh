@@ -58,16 +58,30 @@ check_deps() {
     missing_installable+=("fzf")
   fi
 
-  # Offer to install missing packages via brew
-  if [ ${#missing_installable[@]} -gt 0 ] && command -v brew >/dev/null 2>&1; then
+  # Offer to install missing packages via package manager
+  local _pkg_mgr=""
+  if command -v brew >/dev/null 2>&1; then _pkg_mgr="brew"
+  elif command -v apt-get >/dev/null 2>&1; then _pkg_mgr="apt-get"
+  elif command -v dnf >/dev/null 2>&1; then _pkg_mgr="dnf"
+  elif command -v pacman >/dev/null 2>&1; then _pkg_mgr="pacman"
+  fi
+
+  if [ ${#missing_installable[@]} -gt 0 ] && [ -n "$_pkg_mgr" ]; then
     printf '\n%s %s\n' "$(_peach 'Missing:')" "${missing_installable[*]}"
-    printf 'Install via brew? [Y/n]: '
+    printf 'Install via %s? [Y/n]: ' "$_pkg_mgr"
     local answer
     read -r answer </dev/tty || true
     if [[ "${answer:-Y}" =~ ^[Yy]$ ]]; then
       for dep in "${missing_installable[@]}"; do
         printf '\n%s\n' "$(_bold "Installing $dep...")"
-        if brew install "$dep" >/dev/tty 2>&1; then
+        local _install_ok=false
+        case "$_pkg_mgr" in
+          brew)    brew install "$dep" >/dev/tty 2>&1 && _install_ok=true ;;
+          apt-get) sudo apt-get install -y "$dep" >/dev/tty 2>&1 && _install_ok=true ;;
+          dnf)     sudo dnf install -y "$dep" >/dev/tty 2>&1 && _install_ok=true ;;
+          pacman)  sudo pacman -S --noconfirm "$dep" >/dev/tty 2>&1 && _install_ok=true ;;
+        esac
+        if [ "$_install_ok" = "true" ]; then
           _ok "$dep installed"
         else
           _fail "$dep install failed"
@@ -99,17 +113,22 @@ troubleshoot_quota() {
   _step() { printf 'Step %d: %-38s' "$1" "$2"; }
 
   _step 1 'jq installed'
-  if command -v jq >/dev/null 2>&1; then printf '%s\n' "$(_green '✓')"; else printf '%s\n' "$(_red '✗')"; _fail 'Install jq: brew install jq'; return 1; fi
+  if command -v jq >/dev/null 2>&1; then printf '%s\n' "$(_green '✓')"; else printf '%s\n' "$(_red '✗')"; _fail 'Install jq: brew install jq (or apt install jq)'; return 1; fi
 
   _step 2 'curl installed'
-  if command -v curl >/dev/null 2>&1; then printf '%s\n' "$(_green '✓')"; else printf '%s\n' "$(_red '✗')"; _fail 'Install curl: brew install curl'; return 1; fi
+  if command -v curl >/dev/null 2>&1; then printf '%s\n' "$(_green '✓')"; else printf '%s\n' "$(_red '✗')"; _fail 'Install curl: brew install curl (or apt install curl)'; return 1; fi
 
-  _step 3 'Claude Code keychain entry'
-  local raw
+  _step 3 'Claude Code credentials'
+  local raw=""
+  # macOS: Keychain
   raw=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
+  # Linux: credentials file
+  if [ -z "$raw" ] && [ -f "$HOME/.claude/.credentials.json" ]; then
+    raw=$(cat "$HOME/.claude/.credentials.json" 2>/dev/null || true)
+  fi
   if [ -n "$raw" ]; then printf '%s\n' "$(_green '✓')"; else
     printf '%s\n' "$(_red '✗')"
-    _fail 'Keychain entry missing. Sign in to Claude Code first.'
+    _fail 'Credentials not found. Sign in to Claude Code first.'
     return 1
   fi
 
@@ -118,7 +137,7 @@ troubleshoot_quota() {
   token=$(echo "$raw" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
   if [ -n "$token" ]; then printf '%s\n' "$(_green '✓')"; else
     printf '%s\n' "$(_red '✗')"
-    _fail 'Could not parse token from keychain entry.'
+    _fail 'Could not parse token from credentials.'
     _fail 'Fix: run /logout then /login in Claude Code'
     return 1
   fi
@@ -360,7 +379,7 @@ select_theme() {
 
   printf '\nEnter 1-%d or Enter to keep [%d]: ' "${#theme_names[@]}" "$default_idx"
   local choice
-  read -r choice </dev/tty
+  read -r choice </dev/tty || true
   choice=${choice:-$default_idx}
   if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#theme_names[@]}" ]; then
     THEME="${theme_names[$(( choice - 1 ))]}"
@@ -566,14 +585,19 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
   fi
 fi
 
+_wizard_done=false
 if [ "$_tui_available" = "true" ]; then
   printf '\n%s\n' "$(_green 'Launching configuration TUI...')"
-  python3 "$CONFIGURE"
-else
-  # ── Bash wizard fallback ───────────────────────────────────────────────────
-  if [ "$_tui_available" = "false" ]; then
-    printf '\n%s\n' "$(_dim 'TUI not available — using text wizard (pip install textual for the full TUI)')"
+  if python3 "$CONFIGURE"; then
+    _wizard_done=true
+  else
+    printf '\n%s\n' "$(_dim 'TUI failed — falling back to text wizard')"
   fi
+else
+  printf '\n%s\n' "$(_dim 'TUI not available — using text wizard (pip install textual for the full TUI)')"
+fi
+
+if [ "$_wizard_done" = "false" ]; then
   select_features
   select_path_target
   select_theme

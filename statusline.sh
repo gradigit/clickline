@@ -56,9 +56,16 @@ seven_day_reset=""
 
 if [ "${SHOW_QUOTA:-true}" = "true" ]; then
   _fetch_usage() {
-    local token
-    token=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
-      | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
+    local token raw
+    # macOS: Keychain
+    raw=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
+    if [ -n "$raw" ]; then
+      token=$(echo "$raw" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
+    fi
+    # Linux: credentials file
+    if [ -z "$token" ] && [ -f "$HOME/.claude/.credentials.json" ]; then
+      token=$(jq -r '.claudeAiOauth.accessToken // empty' "$HOME/.claude/.credentials.json" 2>/dev/null)
+    fi
     [ -z "$token" ] && return 1
     local resp
     resp=$(curl -s --max-time 3 \
@@ -97,6 +104,14 @@ if [ "${SHOW_QUOTA:-true}" = "true" ]; then
   fi
 fi
 
+# ── Portable ISO 8601 → epoch ─────────────────────────────────────────────────
+_iso_to_epoch() {
+  local cleaned="$1"
+  # GNU date (Linux) then BSD date (macOS)
+  date -d "$cleaned" "+%s" 2>/dev/null \
+    || date -jf "%Y-%m-%dT%H:%M:%S%z" "$cleaned" "+%s" 2>/dev/null
+}
+
 # ── Format helpers ────────────────────────────────────────────────────────────
 fmt_reset() {
   local reset_iso="$1"
@@ -104,7 +119,7 @@ fmt_reset() {
   local cleaned
   cleaned=$(echo "$reset_iso" | sed 's/\.[0-9]*//; s/Z$/+0000/; s/:\([0-9][0-9]\)$/\1/')
   local reset_epoch
-  reset_epoch=$(date -jf "%Y-%m-%dT%H:%M:%S%z" "$cleaned" "+%s" 2>/dev/null)
+  reset_epoch=$(_iso_to_epoch "$cleaned")
   [ -z "$reset_epoch" ] && return
   local diff=$(( reset_epoch - now_epoch ))
   [ "$diff" -le 0 ] && { printf "now"; return; }
@@ -120,7 +135,7 @@ fmt_reset_days() {
   local cleaned
   cleaned=$(echo "$reset_iso" | sed 's/\.[0-9]*//; s/Z$/+0000/; s/:\([0-9][0-9]\)$/\1/')
   local reset_epoch
-  reset_epoch=$(date -jf "%Y-%m-%dT%H:%M:%S%z" "$cleaned" "+%s" 2>/dev/null)
+  reset_epoch=$(_iso_to_epoch "$cleaned")
   [ -z "$reset_epoch" ] && return
   local diff=$(( reset_epoch - now_epoch ))
   [ "$diff" -le 0 ] && { printf "0d"; return; }

@@ -23,9 +23,9 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - [Ghostty](https://ghostty.org) — OSC-8 and 24-bit color support required (iTerm2, WezTerm also work)
 - [Claude Code](https://claude.ai/code)
 - `jq`, `git`, `curl`
-- macOS (uses BSD `date` and `security` keychain for OAuth token)
+- macOS or Linux
 - `gh` CLI — optional, needed for PR and CI features
-- `python3` + `textual` — optional, for the graphical configurator (`pip install textual`); falls back to a text wizard
+- `python3` + `textual` — optional, for the graphical configurator (`pip3 install textual`); falls back to a text wizard
 
 ## Installation
 
@@ -71,6 +71,16 @@ Then add to `~/.claude/settings.json`:
   }
 }
 ```
+
+### Install via Claude Code
+
+Paste the GitHub link or ask Claude Code:
+
+> "Install clickline" — or just paste `https://github.com/gradigit/clickline`
+
+Claude Code will download the files, check dependencies, then walk you through preset, theme, and layout selection with side-by-side ASCII previews of each option.
+
+**AI agents:** read [`INSTALL.md`](INSTALL.md) for the full step-by-step install and configuration flow.
 
 ## Configurator
 
@@ -347,7 +357,13 @@ in Claude Code to refresh OAuth token scopes.
 PR and CI data is fetched via the `gh` CLI. Install and authenticate:
 
 ```sh
+# macOS
 brew install gh
+# Debian/Ubuntu
+sudo apt install gh
+# Fedora
+sudo dnf install gh
+
 gh auth login
 ```
 
