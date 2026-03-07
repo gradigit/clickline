@@ -691,7 +691,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
     # Offer to install textual for the graphical configurator
     printf '\n%s\n' "$(_peach 'The graphical configurator requires the textual Python package.')"
     printf 'Install textual via pip? [Y/n]: '
-    local _ans
+    _ans=""
     read -r _ans </dev/tty || true
     if [[ "${_ans:-Y}" =~ ^[Yy]$ ]]; then
       if pip3 install textual >/dev/tty 2>&1; then
