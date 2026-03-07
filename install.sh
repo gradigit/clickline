@@ -690,15 +690,27 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
   else
     # Offer to install textual for the graphical configurator
     printf '\n%s\n' "$(_peach 'The graphical configurator requires the textual Python package.')"
-    printf 'Install textual via pip? [Y/n]: '
+    printf 'Install textual? [Y/n]: '
     _ans=""
     read -r _ans </dev/tty || true
     if [[ "${_ans:-Y}" =~ ^[Yy]$ ]]; then
-      if python3 -m pip install textual >/dev/tty 2>&1; then
+      _textual_ok=false
+      # Try uv first (fast, no pip needed), then pip
+      if command -v uv >/dev/null 2>&1; then
+        uv pip install textual >/dev/tty 2>&1 && _textual_ok=true
+      fi
+      if [ "$_textual_ok" = "false" ] && python3 -m pip install --user textual >/dev/tty 2>&1; then
+        _textual_ok=true
+      fi
+      if [ "$_textual_ok" = "false" ] && command -v pip3 >/dev/null 2>&1; then
+        pip3 install --user textual >/dev/tty 2>&1 && _textual_ok=true
+      fi
+      if [ "$_textual_ok" = "true" ]; then
         _ok "textual installed"
         _tui_available=true
       else
         _fail "textual install failed — using text wizard"
+        _fail "Fix: install uv (curl -LsSf https://astral.sh/uv/install.sh | sh) then re-run"
       fi
     fi
   fi
