@@ -708,7 +708,7 @@ fi
 _wizard_done=false
 if [ -n "$_tui_cmd" ]; then
   printf '\n%s\n' "$(_green 'Launching configuration TUI...')"
-  if $_tui_cmd "$CONFIGURE"; then
+  if $_tui_cmd "$CONFIGURE" </dev/tty; then
     _wizard_done=true
   else
     printf '\n%s\n' "$(_dim 'TUI failed — falling back to text wizard')"
