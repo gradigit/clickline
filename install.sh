@@ -694,7 +694,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
     _ans=""
     read -r _ans </dev/tty || true
     if [[ "${_ans:-Y}" =~ ^[Yy]$ ]]; then
-      if pip3 install textual >/dev/tty 2>&1; then
+      if python3 -m pip install textual >/dev/tty 2>&1; then
         _ok "textual installed"
         _tui_available=true
       else
