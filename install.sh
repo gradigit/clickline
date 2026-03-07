@@ -236,6 +236,111 @@ if command -v fzf >/dev/null 2>&1; then
   fi
 fi
 
+# ── Preset selector ──────────────────────────────────────────────────────────
+_preset_chosen=false
+select_preset() {
+  printf '\n%s\n\n' "$(_bold 'Choose a preset:')"
+
+  local -a pnames=("Minimal" "Clean" "Standard" "Developer" "Full" "Custom")
+  local -a pdescs=(
+    "Just path + model"
+    "Key info, two lines"
+    "Recommended default"
+    "Git + CI + vim details"
+    "Everything enabled"
+    "Toggle individual elements"
+  )
+  local -a ppreviews=(
+    "path | model"
+    "path branch model | context cost"
+    "path branch pr model | context quota cost"
+    "path branch commit pr ci model vim | context quota cost"
+    "path branch commit pr ci model version vim agent | context quota cost"
+    ""
+  )
+
+  local idx=1
+  for i in 0 1 2 3 4 5; do
+    local mark=""
+    [ "$i" -eq 2 ] && mark=" $(_dim '(recommended)')"
+    printf '  %s %-12s %s%s\n' "$(_bold "$idx.")" "${pnames[$i]}" "$(_dim "${pdescs[$i]}")" "$mark"
+    [ -n "${ppreviews[$i]}" ] && _prev_layout "${ppreviews[$i]}"
+    (( idx++ ))
+  done
+
+  printf '\nEnter 1-6 [3]: '
+  local choice
+  read -r choice </dev/tty || true
+  choice=${choice:-3}
+
+  case "$choice" in
+    1) # Minimal
+      SHOW_BRANCH=false; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
+      SHOW_COMMIT=false; SHOW_PR=false; SHOW_CI=false
+      SHOW_MODEL=true; SHOW_VERSION=false
+      SHOW_CONTEXT=false; SHOW_QUOTA=false; SHOW_COST=false
+      LAYOUT='path | model'
+      _preset_chosen=true ;;
+    2) # Clean
+      SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
+      SHOW_COMMIT=false; SHOW_PR=false; SHOW_CI=false
+      SHOW_MODEL=true; SHOW_VERSION=false
+      SHOW_CONTEXT=true; SHOW_QUOTA=false; SHOW_COST=true
+      LAYOUT='path branch model | context cost'
+      _preset_chosen=true ;;
+    3) # Standard
+      SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
+      SHOW_COMMIT=false; SHOW_PR=true; SHOW_CI=false
+      SHOW_MODEL=true; SHOW_VERSION=false
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
+      LAYOUT='path branch pr model | context quota cost'
+      _preset_chosen=true ;;
+    4) # Developer
+      SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=true
+      SHOW_COMMIT=true; SHOW_PR=true; SHOW_CI=true
+      SHOW_MODEL=true; SHOW_VERSION=false
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
+      LAYOUT='path branch commit pr ci model vim | context quota cost'
+      _preset_chosen=true ;;
+    5) # Full
+      SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=true
+      SHOW_COMMIT=true; SHOW_PR=true; SHOW_CI=true
+      SHOW_MODEL=true; SHOW_VERSION=true
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
+      LAYOUT='path branch commit pr ci model version vim agent | context quota cost'
+      _preset_chosen=true ;;
+    6) # Custom — will run select_features + select_layout
+      _preset_chosen=false ;;
+  esac
+}
+
+# ── Options selector ────────────────────────────────────────────────────────
+select_options() {
+  printf '\n%s\n' "$(_bold 'Advanced options (Enter to keep defaults):')"
+
+  printf '  Branch max chars [%s]: ' "$BRANCH_MAX_CHARS"
+  local _v; read -r _v </dev/tty || true
+  [ -n "$_v" ] && [[ "$_v" =~ ^[0-9]+$ ]] && BRANCH_MAX_CHARS="$_v"
+
+  printf '  Path segments to show [%s]: ' "$PATH_SEGMENTS"
+  read -r _v </dev/tty || true
+  [ -n "$_v" ] && [[ "$_v" =~ ^[0-9]+$ ]] && PATH_SEGMENTS="$_v"
+
+  printf '  Leading blank line before statusline? (true/false) [%s]: ' "$LEADING_NEWLINE"
+  read -r _v </dev/tty || true
+  [[ "$_v" =~ ^(true|false)$ ]] && LEADING_NEWLINE="$_v"
+
+  printf '  Cache TTL seconds — PR [%s] CI [%s] Quota [%s]: ' "$PR_CACHE_TTL" "$CI_CACHE_TTL" "$QUOTA_CACHE_TTL"
+  local _ttls; read -r _ttls </dev/tty || true
+  if [ -n "$_ttls" ]; then
+    local _t1 _t2 _t3
+    read -r _t1 _t2 _t3 <<< "$_ttls"
+    [ -n "$_t1" ] && [[ "$_t1" =~ ^[0-9]+$ ]] && PR_CACHE_TTL="$_t1"
+    [ -n "$_t2" ] && [[ "$_t2" =~ ^[0-9]+$ ]] && CI_CACHE_TTL="$_t2"
+    [ -n "$_t3" ] && [[ "$_t3" =~ ^[0-9]+$ ]] && QUOTA_CACHE_TTL="$_t3"
+  fi
+}
+
 # ── Feature selector ─────────────────────────────────────────────────────────
 select_features() {
   printf '\n%s\n' "$(_bold 'Select statusline elements:')"
@@ -612,10 +717,19 @@ else
 fi
 
 if [ "$_wizard_done" = "false" ]; then
-  select_features
+  select_preset
+  if [ "$_preset_chosen" = "false" ]; then
+    select_features
+    select_layout
+  fi
   select_path_target
   select_theme
-  select_layout
+  select_options
+
+  # Show final preview
+  printf '\n%s\n' "$(_bold 'Preview:')"
+  _prev_layout "$LAYOUT"
+
   write_conf
 fi
 
