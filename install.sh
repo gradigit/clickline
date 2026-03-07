@@ -682,46 +682,39 @@ install_script
 update_settings
 
 # ── Try TUI (Python + Textual) ────────────────────────────────────────────────
+# ── Try TUI (Python + Textual) ────────────────────────────────────────────────
 CONFIGURE="$HOME/.claude/clickline-configure.py"
-_tui_available=false
-if command -v python3 >/dev/null 2>&1 && [ -f "$CONFIGURE" ]; then
+_tui_cmd=""
+if [ -f "$CONFIGURE" ] && command -v python3 >/dev/null 2>&1; then
   if python3 -c "import textual" >/dev/null 2>&1; then
-    _tui_available=true
+    _tui_cmd="python3"
   else
-    # Install uv if missing (needed for textual install)
+    # Install uv if missing, then use uv run --with textual
     if ! command -v uv >/dev/null 2>&1; then
       printf '\n%s\n' "$(_peach 'Installing uv (Python package manager)...')"
       if curl -LsSf https://astral.sh/uv/install.sh 2>/dev/null | sh >/dev/tty 2>&1; then
-        # Add uv to PATH for this session
         export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
         _ok "uv installed"
       else
-        _fail "uv install failed — using text wizard"
+        _fail "uv install failed"
       fi
     fi
-    # Install textual via uv
     if command -v uv >/dev/null 2>&1; then
-      printf '%s\n' "$(_peach 'Installing textual for the graphical configurator...')"
-      if uv pip install --system textual >/dev/tty 2>&1; then
-        _ok "textual installed"
-        _tui_available=true
-      else
-        _fail "textual install failed — using text wizard"
-      fi
+      _tui_cmd="uv run --with textual python3"
     fi
   fi
 fi
 
 _wizard_done=false
-if [ "$_tui_available" = "true" ]; then
+if [ -n "$_tui_cmd" ]; then
   printf '\n%s\n' "$(_green 'Launching configuration TUI...')"
-  if python3 "$CONFIGURE"; then
+  if $_tui_cmd "$CONFIGURE"; then
     _wizard_done=true
   else
     printf '\n%s\n' "$(_dim 'TUI failed — falling back to text wizard')"
   fi
 else
-  printf '\n%s\n' "$(_dim 'TUI not available — using text wizard (pip install textual for the full TUI)')"
+  printf '\n%s\n' "$(_dim 'TUI not available — using text wizard')"
 fi
 
 if [ "$_wizard_done" = "false" ]; then
