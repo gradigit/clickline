@@ -12,7 +12,7 @@ input=$(cat)
 eval "$(echo "$input" | jq -r '
   @sh "model=\(.model.display_name // "—")",
   @sh "model_id=\(.model.id // "—")",
-  @sh "dir=\(.workspace.current_dir // "—")",
+  @sh "dir=\(.workspace.current_dir // "")",
   @sh "used=\(.context_window.used_percentage // "")",
   @sh "ctx_size=\(.context_window.context_window_size // 200000)",
   @sh "cost=\(.cost.total_cost_usd // 0)",
@@ -173,14 +173,71 @@ short_dir=$(echo "$dir" | awk -F/ -v n="$_ps" '
 _md5() { printf '%s' "$1" | md5 2>/dev/null || printf '%s' "$1" | md5sum 2>/dev/null | cut -d' ' -f1; }
 
 # ── Git info ──────────────────────────────────────────────────────────────────
-git_branch_full=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null)
-git_branch="$git_branch_full"
+github_remote_url() {
+  local remote="$1"
+  case "$remote" in
+    git@github.com:*)       printf 'https://github.com/%s' "${remote#git@github.com:}" | sed 's|\.git$||' ;;
+    ssh://git@github.com/*) printf 'https://github.com/%s' "${remote#ssh://git@github.com/}" | sed 's|\.git$||' ;;
+    https://github.com/*)   printf '%s' "$remote" | sed 's|\.git$||' ;;
+  esac
+}
+
+github_repo_path() {
+  local url="$1"
+  [ -n "$url" ] && printf '%s' "${url#https://github.com/}"
+}
+
+git_branch_full=""
+git_branch_ref=""
+git_ref_url=""
+repo_path=""
+github_branch_url=""
+git_root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)
+
+if [ -n "$git_root" ]; then
+  git_branch_full=$(git -C "$dir" branch --show-current 2>/dev/null)
+  if [ -n "$git_branch_full" ]; then
+    git_branch_ref="$git_branch_full"
+    _git_upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
+    if [ -n "$_git_upstream" ]; then
+      _git_remote_name=${_git_upstream%%/*}
+      _git_remote_branch=${_git_upstream#*/}
+      if [ -n "$_git_remote_name" ] && [ "$_git_remote_branch" != "$_git_upstream" ]; then
+        _git_remote=$(git -C "$dir" config --get "remote.$_git_remote_name.url" 2>/dev/null)
+        _github_remote=$(github_remote_url "$_git_remote")
+        if [ -n "$_github_remote" ]; then
+          repo_path=$(github_repo_path "$_github_remote")
+          git_ref_url="$_git_remote_branch"
+          github_branch_url="${_github_remote}/tree/${git_ref_url}"
+        fi
+      fi
+    fi
+  else
+    git_ref_url=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
+    [ -n "$git_ref_url" ] && git_branch_ref="detached@$git_ref_url"
+    _git_remote=$(git -C "$dir" config --get remote.origin.url 2>/dev/null)
+    _github_remote=$(github_remote_url "$_git_remote")
+    if [ -n "$_github_remote" ]; then
+      repo_path=$(github_repo_path "$_github_remote")
+      github_branch_url="${_github_remote}/tree/${git_ref_url}"
+    fi
+  fi
+
+  if [ -z "$repo_path" ]; then
+    _git_remote=$(git -C "$dir" config --get remote.origin.url 2>/dev/null)
+    _github_remote=$(github_remote_url "$_git_remote")
+    [ -n "$_github_remote" ] && repo_path=$(github_repo_path "$_github_remote")
+  fi
+fi
+
+git_branch="$git_branch_ref"
+git_branch_placeholder="${git_branch_full:-$git_branch_ref}"
+git_branch_remote_ref="${git_ref_url:-$git_branch_full}"
 _max_b=${BRANCH_MAX_CHARS:-25}
 if [ -n "$git_branch" ] && [ "${#git_branch}" -gt "$_max_b" ]; then
   git_branch="${git_branch:0:$(( _max_b - 1 ))}…"
 fi
 
-git_root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)
 repo_hash=$(_md5 "${git_root:-$dir}")
 
 # ── Custom items (merged: repo-local .clickline overrides global) ────────────
@@ -195,16 +252,6 @@ elif [ -n "$_cr" ]; then
   _custom_merged="$_cr"
 elif [ -n "$_cg" ]; then
   _custom_merged="$_cg"
-fi
-
-repo_path=""
-github_branch_url=""
-if [ -n "$git_branch_full" ]; then
-  _git_remote=$(git -C "$dir" remote get-url origin 2>/dev/null)
-  if [ -n "$_git_remote" ]; then
-    repo_path=$(echo "$_git_remote" | sed 's|git@github.com:||; s|https://github.com/||; s|\.git$||')
-    github_branch_url="https://github.com/${repo_path}/tree/${git_branch_full}"
-  fi
 fi
 
 default_branch=$(git -C "$dir" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|origin/||')
@@ -254,7 +301,7 @@ if [ "${SHOW_PR:-true}" = "true" ] \
     if [ $(( now_epoch - _cache_ts )) -gt "${PR_CACHE_TTL:-60}" ]; then
       # stale: serve cached, refresh in background
       ( _tmp=$(mktemp /tmp/.clickline-pr-XXXXXX)
-        if (cd "$dir" && gh pr view --json url,number >"$_tmp" 2>/dev/null); then
+        if (cd "$dir" && gh pr view --repo "$repo_path" --json url,number >"$_tmp" 2>/dev/null); then
           printf '%s %s\n' "$(date +%s)" "$(jq -c '.' "$_tmp")" > "$PR_CACHE"
         fi
         rm -f "$_tmp" ) &
@@ -263,7 +310,7 @@ if [ "${SHOW_PR:-true}" = "true" ] \
   else
     # cold cache: fire async, show nothing this render
     ( _tmp=$(mktemp /tmp/.clickline-pr-XXXXXX)
-      if (cd "$dir" && gh pr view --json url,number >"$_tmp" 2>/dev/null); then
+      if (cd "$dir" && gh pr view --repo "$repo_path" --json url,number >"$_tmp" 2>/dev/null); then
         printf '%s %s\n' "$(date +%s)" "$(jq -c '.' "$_tmp")" > "$PR_CACHE"
       else
         printf '%s {}\n' "$(date +%s)" > "$PR_CACHE"
@@ -276,7 +323,7 @@ if [ "${SHOW_PR:-true}" = "true" ] \
     _branch_enc=$(python3 -c "
 import urllib.parse, sys
 print(urllib.parse.quote(sys.argv[1], safe='/'))
-" "$git_branch_full" 2>/dev/null || printf '%s' "$git_branch_full")
+" "$git_branch_remote_ref" 2>/dev/null || printf '%s' "$git_branch_remote_ref")
     pr_new_url="https://github.com/${repo_path}/compare/${_branch_enc}?expand=1"
   fi
 fi
@@ -285,10 +332,11 @@ fi
 ci_status=""
 ci_conclusion=""
 ci_url=""
-CI_CACHE="/tmp/.clickline-ci-${repo_hash}-$(_md5 "${git_branch_full:-nobranch}")"
+CI_CACHE="/tmp/.clickline-ci-${repo_hash}-$(_md5 "${git_branch_remote_ref:-nobranch}")"
 
 if [ "${SHOW_CI:-false}" = "true" ] \
-   && [ -n "$git_branch_full" ] \
+   && [ -n "$git_branch_remote_ref" ] \
+   && [ -n "$repo_path" ] \
    && command -v gh >/dev/null 2>&1; then
 
   if [ -f "$CI_CACHE" ]; then
@@ -296,7 +344,7 @@ if [ "${SHOW_CI:-false}" = "true" ] \
     _ci_data=$(cut -d' ' -f2- "$CI_CACHE")
     if [ $(( now_epoch - _cache_ts )) -gt "${CI_CACHE_TTL:-30}" ]; then
       ( _tmp=$(mktemp /tmp/.clickline-ci-XXXXXX)
-        if (cd "$dir" && gh run list --branch "$git_branch_full" --limit 1 \
+        if (cd "$dir" && gh run list --repo "$repo_path" --branch "$git_branch_remote_ref" --limit 1 \
             --json status,conclusion,url >"$_tmp" 2>/dev/null); then
           printf '%s %s\n' "$(date +%s)" "$(jq -c '.' "$_tmp")" > "$CI_CACHE"
         fi
@@ -310,7 +358,7 @@ if [ "${SHOW_CI:-false}" = "true" ] \
     ' 2>/dev/null)"
   else
     ( _tmp=$(mktemp /tmp/.clickline-ci-XXXXXX)
-      if (cd "$dir" && gh run list --branch "$git_branch_full" --limit 1 \
+      if (cd "$dir" && gh run list --repo "$repo_path" --branch "$git_branch_remote_ref" --limit 1 \
           --json status,conclusion,url >"$_tmp" 2>/dev/null); then
         printf '%s %s\n' "$(date +%s)" "$(jq -c '.' "$_tmp")" > "$CI_CACHE"
       fi
@@ -662,7 +710,7 @@ render_element() {
       # Get link
       local _link; _link=$(printf '%s' "$_def" | jq -r '.link // ""' 2>/dev/null)
       _link="${_link//\{dir\}/$dir}"
-      _link="${_link//\{branch\}/$git_branch_full}"
+      _link="${_link//\{branch\}/$git_branch_placeholder}"
       printf '%s' "$_cc"
       if [ -n "$_link" ]; then
         osc_url "$_link" "$_label"
