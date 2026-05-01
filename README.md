@@ -12,7 +12,7 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - **Custom items** — add your own shell-driven statusline segments with caching and conditional display
 - **Per-repo items** — `.clickline` file for repo-local service links (Railway, Vercel, Supabase, etc.), shareable via git
 - **Interactive configurator** — TUI (Textual) or bash wizard to choose elements, theme, and layout
-- **Smart truncation** — long paths show last 2 segments, branch names cap at 25 chars
+- **Smart truncation** — long paths show last 2 segments, branch/ref names cap at 25 chars
 - **PR + CI** — open PR number (clickable), "New PR" shortcut, CI status ✓ ✗ ⋯ (all async, never blocks)
 - **Quota tracking** — 5-hour and 7-day usage with time-until-reset, cached and stale-while-revalidated
 - **Context window** — percentage + max size, with ⚠️ / 🚨 warnings at 60% and 80%
@@ -128,7 +128,7 @@ Falls back to the bash wizard if Textual is unavailable.
 | Element | Destination |
 |---|---|
 | Working directory | `file://` — opens in Finder / VS Code / Cursor |
-| Git branch | `https://github.com/owner/repo/tree/branch` |
+| Git branch/ref | `https://github.com/owner/repo/tree/branch` |
 | PR `#N` | Pull request page |
 | `New PR` | GitHub compare page to open a PR |
 | CI symbol (✓ ✗ ⋯) | GitHub Actions run page |
