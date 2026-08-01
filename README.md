@@ -198,7 +198,7 @@ Both files use the same JSON format:
 Then add `custom_clock` to your `LAYOUT` in `clickline.conf`:
 
 ```
-LAYOUT=path branch pr custom_clock | context quota cost
+LAYOUT='path branch pr custom_clock | context quota cost'
 ```
 
 ### Custom item fields

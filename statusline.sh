@@ -3,8 +3,33 @@
 # https://github.com/gradigit/clickline
 
 # ── Config ───────────────────────────────────────────────────────────────────
-# shellcheck source=/dev/null
-source "$HOME/.claude/clickline.conf" 2>/dev/null
+_load_conf() {
+  local _conf="$HOME/.claude/clickline.conf"
+  [ -f "$_conf" ] || return 0
+  local _line _key _val
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    _line=$(printf '%s' "$_line" | sed 's/[[:space:]]#.*$//')
+    _line="${_line#"${_line%%[![:space:]]*}"}"
+    _line="${_line%"${_line##*[![:space:]]}"}"
+    [ -z "$_line" ] && continue
+    [[ "$_line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    _key="${BASH_REMATCH[1]}"
+    _val="${BASH_REMATCH[2]}"
+    _val="${_val#"${_val%%[![:space:]]*}"}"
+    _val="${_val%"${_val##*[![:space:]]}"}"
+    if [[ "$_val" =~ ^\"(.*)\"$ ]]; then
+      _val="${BASH_REMATCH[1]}"
+    elif [[ "$_val" =~ ^\'(.*)\'$ ]]; then
+      _val="${BASH_REMATCH[1]}"
+    fi
+    case "$_key" in
+      SHOW_*|LEADING_NEWLINE|LAYOUT|THEME|BRANCH_MAX_CHARS|PATH_SEGMENTS|PATH_LINK_TARGET|PR_CACHE_TTL|CI_CACHE_TTL|QUOTA_CACHE_TTL)
+        printf -v "$_key" '%s' "$_val"
+        ;;
+    esac
+  done < "$_conf"
+}
+_load_conf
 
 input=$(cat)
 
