@@ -343,6 +343,8 @@ CI_CACHE_TTL=30          # seconds between CI cache refreshes
 QUOTA_CACHE_TTL=60       # seconds between quota cache refreshes
 ```
 
+Config values are read literally — `clickline.conf` is parsed as data, not executed as a shell script. `$VAR`, `$(command)` and backticks are stored verbatim rather than expanded, so `LAYOUT="$LAYOUT custom_x"` no longer works; write the full value out instead. Quote any value containing spaces or `#` (for example `LAYOUT='path branch | context cost'`), and note that `#` preceded by whitespace starts a comment on unquoted values. Unrecognized keys are ignored with a warning on stderr.
+
 Colors follow the same green → yellow → red progression for context, 5h quota, and 7d quota (< 50% green, < 75% yellow, ≥ 75% red). Cost is ceiling-rounded to whole dollars.
 
 ## Quota troubleshooting

@@ -3,28 +3,36 @@
 # https://github.com/gradigit/clickline
 
 # ── Config ───────────────────────────────────────────────────────────────────
+# Parses KEY=value pairs from clickline.conf without sourcing it, so a config
+# file is data rather than code. Values are taken literally: $VAR, $(...) and
+# backticks are NOT expanded. Uses only shell builtins — this runs on every
+# statusline render, so it must not fork.
 _load_conf() {
   local _conf="$HOME/.claude/clickline.conf"
   [ -f "$_conf" ] || return 0
   local _line _key _val
   while IFS= read -r _line || [ -n "$_line" ]; do
-    _line=$(printf '%s' "$_line" | sed 's/[[:space:]]#.*$//')
+    # Trim leading whitespace, then skip blank and whole-line comments.
     _line="${_line#"${_line%%[![:space:]]*}"}"
-    _line="${_line%"${_line##*[![:space:]]}"}"
-    [ -z "$_line" ] && continue
+    case "$_line" in ''|'#'*) continue ;; esac
     [[ "$_line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
     _key="${BASH_REMATCH[1]}"
     _val="${BASH_REMATCH[2]}"
     _val="${_val#"${_val%%[![:space:]]*}"}"
-    _val="${_val%"${_val##*[![:space:]]}"}"
-    if [[ "$_val" =~ ^\"(.*)\"$ ]]; then
-      _val="${BASH_REMATCH[1]}"
-    elif [[ "$_val" =~ ^\'(.*)\'$ ]]; then
-      _val="${BASH_REMATCH[1]}"
-    fi
+    # Quotes are resolved BEFORE comment stripping, so a quoted value may
+    # legitimately contain " #" (e.g. LAYOUT='path branch # foo').
+    case "$_val" in
+      \"*\"*) _val="${_val#\"}"; _val="${_val%%\"*}" ;;
+      \'*\'*) _val="${_val#\'}"; _val="${_val%%\'*}" ;;
+      *)      _val="${_val%%[[:space:]]#*}"
+              _val="${_val%"${_val##*[![:space:]]}"}" ;;
+    esac
     case "$_key" in
       SHOW_*|LEADING_NEWLINE|LAYOUT|THEME|BRANCH_MAX_CHARS|PATH_SEGMENTS|PATH_LINK_TARGET|PR_CACHE_TTL|CI_CACHE_TTL|QUOTA_CACHE_TTL)
         printf -v "$_key" '%s' "$_val"
+        ;;
+      *)
+        printf 'clickline: ignoring unrecognized config key %s in %s\n' "$_key" "$_conf" >&2
         ;;
     esac
   done < "$_conf"
