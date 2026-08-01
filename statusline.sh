@@ -693,7 +693,7 @@ render_element() {
       # Custom items from merged global + repo-local sources
       local _cname="${_e#custom_}"
       [ -z "$_custom_merged" ] && return
-      local _def; _def=$(printf '%s' "$_custom_merged" | jq -r --arg n "$_cname" '.[$n] // empty' 2>/dev/null)
+      local _def; _def=$(printf '%s' "$_custom_merged" | jq -r --arg n "$_cname" '.[$n] // .["custom_" + $n] // empty' 2>/dev/null)
       [ -z "$_def" ] && return
       # Check condition (if set, shell command must exit 0)
       local _cond; _cond=$(printf '%s' "$_def" | jq -r '.condition // ""' 2>/dev/null)
