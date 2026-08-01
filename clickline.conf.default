@@ -15,7 +15,7 @@ SHOW_CONTEXT=true        # context window percentage + max size
 SHOW_QUOTA=true          # 5h and 7d usage with time-until-reset
 SHOW_COST=true           # session cost → transcript file
 LEADING_NEWLINE=false    # blank line before the statusline
-LAYOUT=path branch commit pr ci model version vim agent | context quota cost
+LAYOUT='path branch commit pr ci model version vim agent | context quota cost'
 THEME=catppuccin-mocha   # color theme (see README for full list)
 
 # ── Options ───────────────────────────────────────────────────────────────────

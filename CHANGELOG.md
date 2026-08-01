@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Security
+- **`clickline.conf` is parsed, not sourced** — the statusline no longer runs `source` on the config file, so a malformed or hostile config can no longer execute arbitrary shell code on every render. Values are read with an allowlist of known keys (`SHOW_*`, `LAYOUT`, `THEME`, `*_CACHE_TTL`, and friends).
+
+### Changed
+- **BREAKING: config values are now literal.** `source` expanded `$VAR`, `$(command)` and backticks inside config values; the parser stores them verbatim. Self-referential settings such as `LAYOUT="$LAYOUT custom_x"` silently stop working — write the full value out instead. Values needing spaces or `#` should be quoted, e.g. `LAYOUT='path branch | context cost'`.
+- `LAYOUT` in `clickline.conf.default` is now single-quoted. Unquoted, `bash` parsed the `|` as a pipeline, so `source` never actually set `LAYOUT`.
+- Unrecognized config keys are now reported on stderr instead of being dropped silently. The warning never reaches the statusline itself, which is written to stdout.
+
+### Fixed
+- Custom items are found whether the JSON key is `name` or `custom_name`, matching how they are referenced in `LAYOUT`.
+- A quoted config value containing `" #"` is no longer truncated. Comment stripping ran before quote handling, so `LAYOUT='path branch # foo'` parsed as `'path branch` — a poisoned first token that silently stopped `path` from rendering.
+- Config parsing no longer forks a `printf | sed` pipeline per line, which added ~194 ms to every statusline render (measured under bash 3.2 on macOS with a 29-line config). Render time is back to within noise of pre-parser builds.
+
+### Added
+- `test/conf-parse.sh` — covers comment/quote interaction, literal-value handling, and unrecognized-key warnings.
+
 ## v1.1.0 — 2026-03-08
 
 ### Added

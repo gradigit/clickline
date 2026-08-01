@@ -3,8 +3,41 @@
 # https://github.com/gradigit/clickline
 
 # ── Config ───────────────────────────────────────────────────────────────────
-# shellcheck source=/dev/null
-source "$HOME/.claude/clickline.conf" 2>/dev/null
+# Parses KEY=value pairs from clickline.conf without sourcing it, so a config
+# file is data rather than code. Values are taken literally: $VAR, $(...) and
+# backticks are NOT expanded. Uses only shell builtins — this runs on every
+# statusline render, so it must not fork.
+_load_conf() {
+  local _conf="$HOME/.claude/clickline.conf"
+  [ -f "$_conf" ] || return 0
+  local _line _key _val
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    # Trim leading whitespace, then skip blank and whole-line comments.
+    _line="${_line#"${_line%%[![:space:]]*}"}"
+    case "$_line" in ''|'#'*) continue ;; esac
+    [[ "$_line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    _key="${BASH_REMATCH[1]}"
+    _val="${BASH_REMATCH[2]}"
+    _val="${_val#"${_val%%[![:space:]]*}"}"
+    # Quotes are resolved BEFORE comment stripping, so a quoted value may
+    # legitimately contain " #" (e.g. LAYOUT='path branch # foo').
+    case "$_val" in
+      \"*\"*) _val="${_val#\"}"; _val="${_val%%\"*}" ;;
+      \'*\'*) _val="${_val#\'}"; _val="${_val%%\'*}" ;;
+      *)      _val="${_val%%[[:space:]]#*}"
+              _val="${_val%"${_val##*[![:space:]]}"}" ;;
+    esac
+    case "$_key" in
+      SHOW_*|LEADING_NEWLINE|LAYOUT|THEME|BRANCH_MAX_CHARS|PATH_SEGMENTS|PATH_LINK_TARGET|PR_CACHE_TTL|CI_CACHE_TTL|QUOTA_CACHE_TTL)
+        printf -v "$_key" '%s' "$_val"
+        ;;
+      *)
+        printf 'clickline: ignoring unrecognized config key %s in %s\n' "$_key" "$_conf" >&2
+        ;;
+    esac
+  done < "$_conf"
+}
+_load_conf
 
 input=$(cat)
 
@@ -668,7 +701,7 @@ render_element() {
       # Custom items from merged global + repo-local sources
       local _cname="${_e#custom_}"
       [ -z "$_custom_merged" ] && return
-      local _def; _def=$(printf '%s' "$_custom_merged" | jq -r --arg n "$_cname" '.[$n] // empty' 2>/dev/null)
+      local _def; _def=$(printf '%s' "$_custom_merged" | jq -r --arg n "$_cname" '.[$n] // .["custom_" + $n] // empty' 2>/dev/null)
       [ -z "$_def" ] && return
       # Check condition (if set, shell command must exit 0)
       local _cond; _cond=$(printf '%s' "$_def" | jq -r '.condition // ""' 2>/dev/null)
