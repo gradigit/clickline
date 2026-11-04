@@ -10,11 +10,12 @@ Compact, clickable, customizable statusline for [Claude Code](https://claude.ai/
 - **Configurable layout** — split elements across one or two lines, reorder freely, toggle each on/off
 - **10 color themes** — Catppuccin, Dracula, Tokyo Night, Gruvbox, Nord, Solarized, One Dark, Rosé Pine
 - **Custom items** — add your own shell-driven statusline segments with caching and conditional display
-- **Per-repo items** — `.clickline` file for repo-local service links (Railway, Vercel, Supabase, etc.), shareable via git
+- **Per-repo items** — `.clickline` file for repo-local service links (Railway, Vercel, Supabase, etc.), shareable via git (static links only — see [Custom items](#custom-items))
 - **Interactive configurator** — TUI (Textual) or bash wizard to choose elements, theme, and layout
 - **Smart truncation** — long paths show last 2 segments, branch/ref names cap at 25 chars
 - **PR + CI** — open PR number (clickable), "New PR" shortcut, CI status ✓ ✗ ⋯ (all async, never blocks)
-- **Quota tracking** — 5-hour and 7-day usage with time-until-reset, cached and stale-while-revalidated
+- **Quota tracking** — 5-hour and 7-day usage with time-until-reset, read straight from Claude Code's statusline input (no API calls); shows whichever windows your plan has
+- **Prompt cache** — time until the prompt cache goes cold, plus the session's cache hit rate
 - **Context window** — percentage + max size, with ⚠️ / 🚨 warnings at 60% and 80%
 - **Dirty indicator** — ·N shows count of modified/staged files after branch name
 
@@ -180,6 +181,8 @@ Add your own statusline elements — service links, status indicators, or static
 
 **Per-repo items** are stored in `.clickline` at the repo root and only appear in that repo. Repo items override global items with the same name. You can commit `.clickline` to share service links with your team (add it to `.gitignore` if URLs are sensitive).
 
+Repo items are **static**: `cmd` and `condition` are ignored in `.clickline`. Both are run as shell commands, so honoring them would let any repo you open run commands through your statusline. Put dynamic items in the global file.
+
 Use the `/clickline-custom` skill for interactive setup, or the TUI configurator (`c` for global, `r` for repo item).
 
 Both files use the same JSON format:
@@ -206,11 +209,11 @@ LAYOUT=path branch pr custom_clock | context quota cost
 | Field | Required | Description |
 |---|---|---|
 | `label` | Yes | Static label (used as display text when `cmd` is empty) |
-| `cmd` | No | Shell command whose stdout becomes the displayed text |
+| `cmd` | No | Shell command whose stdout becomes the displayed text (global items only) |
 | `color` | No | Palette key: `sapphire` `lavender` `mauve` `gold` `green` `peach` `red` `dim` |
 | `link` | No | OSC-8 URL — supports `{dir}` and `{branch}` placeholders |
 | `cache_ttl` | No | Seconds to cache `cmd` output (default: 30) |
-| `condition` | No | Shell command that must exit 0 for the item to appear |
+| `condition` | No | Shell command that must exit 0 for the item to appear (global items only) |
 
 Adjacent custom items render with dot separators (` · `) instead of pipe separators (` │ `).
 
@@ -327,7 +330,8 @@ SHOW_CI=false            # ✓ ✗ ⋯ GitHub Actions (requires gh)
 SHOW_MODEL=true
 SHOW_VERSION=false       # Claude Code version
 SHOW_CONTEXT=true
-SHOW_QUOTA=true
+SHOW_QUOTA=true          # 5h / 7d quota remaining (whichever windows your plan has)
+SHOW_CACHE=true          # prompt cache: time until it goes cold + hit %
 SHOW_COST=true
 LEADING_NEWLINE=false    # blank line before the statusline
 
@@ -337,7 +341,7 @@ THEME=catppuccin-mocha   # see Themes section for full list
 # Options
 BRANCH_MAX_CHARS=25      # truncate long branch names
 PATH_SEGMENTS=2          # show last N path segments
-PATH_LINK_TARGET=finder  # finder | vscode | cursor | none
+PATH_LINK_TARGET=finder  # finder | vscode | cursor | none (none also drops the transcript file:// link — use it over ssh/mosh)
 PR_CACHE_TTL=60          # seconds between PR cache refreshes
 CI_CACHE_TTL=30          # seconds between CI cache refreshes
 QUOTA_CACHE_TTL=60       # seconds between quota cache refreshes
@@ -347,7 +351,9 @@ Colors follow the same green → yellow → red progression for context, 5h quot
 
 ## Quota troubleshooting
 
-If quota shows `—`, run:
+Recent Claude Code versions pass quota to the statusline directly (`rate_limits` in the statusline input), so it appears after the session's first response with no setup. Older versions fall back to the OAuth usage endpoint: cached for `QUOTA_CACHE_TTL`, shared by all sessions, and backed off up to an hour if the endpoint fails (e.g. HTTP 429).
+
+If quota still shows `—`, run:
 
 ```sh
 bash install.sh --quota
@@ -364,7 +370,7 @@ in Claude Code to refresh OAuth token scopes.
 
 ## PR and CI features
 
-PR and CI data is fetched via the `gh` CLI. Install and authenticate:
+Recent Claude Code versions track the branch's PR themselves and pass it to the statusline, so an open PR shows up without clickline calling GitHub. Otherwise (no open PR, or an older Claude Code), and for CI status, clickline uses the `gh` CLI. Install and authenticate:
 
 ```sh
 # macOS
@@ -377,7 +383,7 @@ sudo dnf install gh
 gh auth login
 ```
 
-Both use a stale-while-revalidate cache — they never block the statusline render. Data appears on the next response after the cache warms (typically 1 response delay on first use for a branch).
+Both use a stale-while-revalidate cache — they never block the statusline render, and each repo is looked up at most once per `PR_CACHE_TTL` / `CI_CACHE_TTL` across all sessions, even when the lookup fails. Data appears on the next response after the cache warms (typically 1 response delay on first use for a branch).
 
 PR segment is hidden on the default branch (main/master) since PRs don't apply there.
 

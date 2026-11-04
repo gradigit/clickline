@@ -8,7 +8,7 @@ description: Adds or manages custom statusline items for clickline. Handles both
   asks to install clickline, change layout order, modify colors, or remove items — direct
   them to install.sh or the TUI configurator instead.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # /clickline-custom
@@ -61,7 +61,7 @@ For **service links**, offer presets and ask for app name/project ID:
 | Render   | `https://dashboard.render.com/web/<id>`        |
 | Fly.io   | `https://fly.io/apps/<app>`                    |
 
-For **status indicators**, collect: `cmd`, `cache_ttl` (default 30), `condition` (optional), `color`.
+For **status indicators**, collect: `cmd`, `cache_ttl` (default 30), `condition` (optional), `color`. Status indicators must be saved to the **global** file: the statusline ignores `cmd` and `condition` in a repo `.clickline` (running shell commands from a repo file is unsafe), so don't offer "this repo" for them.
 
 For **custom**, collect: `label`, `link` (optional, supports `{dir}` and `{branch}`), `color`.
 
@@ -119,6 +119,7 @@ Read `~/.claude/clickline.conf`, find `LAYOUT=`, append `custom_<name>` before t
 
 - Adjacent custom items render with dot separators (` · `) instead of pipes (` │ `).
 - Repo items override global items with the same name.
+- Repo items are static (`label`, `link`, `color`); `cmd` and `condition` only work in the global file.
 - Add `.clickline` to `.gitignore` if URLs are sensitive.
 - The TUI (`python3 ~/.claude/clickline-configure.py`) also supports `c` (custom) and `r` (repo item).
 
@@ -129,4 +130,4 @@ Update when:
 2. User corrects URL pattern → fix preset
 3. clickline JSON format changes → update field table
 
-Current version: 1.0.0
+Current version: 1.1.0

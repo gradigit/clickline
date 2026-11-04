@@ -167,13 +167,18 @@ troubleshoot_quota() {
         _fail 'Fix: run /logout then /login in Claude Code to refresh token scopes' ;;
       authentication_error)
         _fail 'Fix: run /logout then /login in Claude Code' ;;
+      rate_limit_error)
+        _fail 'The statusline backs off automatically (up to 1h between attempts).'
+        _fail 'Recent Claude Code versions pass quota to the statusline directly, so'
+        _fail 'this endpoint is only a fallback — quota appears after the next response.' ;;
       *)
         _fail "Unexpected error. Check https://status.anthropic.com" ;;
     esac
     return 1
   fi
 
-  if echo "$resp" | jq -e '.five_hour' >/dev/null 2>&1; then
+  # Either window may be null (e.g. plans without a 5-hour limit)
+  if echo "$resp" | jq -e '.five_hour // .seven_day' >/dev/null 2>&1; then
     printf '%s\n' "$(_green '✓')"
   else
     printf '%s\n' "$(_red '✗')"
@@ -182,15 +187,18 @@ troubleshoot_quota() {
   fi
 
   _step 6 'Usage data parseable'
-  local util
-  util=$(echo "$resp" | jq -r '.five_hour.utilization // empty' 2>/dev/null || true)
-  if [ -n "$util" ]; then
+  local util5 util7
+  util5=$(echo "$resp" | jq -r '.five_hour.utilization // empty' 2>/dev/null || true)
+  util7=$(echo "$resp" | jq -r '.seven_day.utilization // empty' 2>/dev/null || true)
+  if [ -n "$util5" ] || [ -n "$util7" ]; then
     printf '%s\n' "$(_green '✓')"
     printf '\n%s\n' "$(_green 'Quota is working correctly!')"
-    printf '5h utilization: %s%%\n' "$(echo "$util" | awk '{printf "%d", $1*100}')"
+    # utilization is already a percentage (0-100)
+    if [ -n "$util5" ]; then printf '5h used: %s%%\n' "$(echo "$util5" | awk '{printf "%d", $1}')"; else printf '5h: no 5-hour limit on this plan\n'; fi
+    [ -n "$util7" ] && printf '7d used: %s%%\n' "$(echo "$util7" | awk '{printf "%d", $1}')"
   else
     printf '%s\n' "$(_red '✗')"
-    _fail 'five_hour.utilization missing from response'
+    _fail 'No utilization in five_hour or seven_day'
   fi
 }
 
@@ -206,9 +214,10 @@ load_conf() {
   SHOW_VERSION=${SHOW_VERSION:-false}
   SHOW_CONTEXT=${SHOW_CONTEXT:-true}
   SHOW_QUOTA=${SHOW_QUOTA:-true}
+  SHOW_CACHE=${SHOW_CACHE:-true}
   SHOW_COST=${SHOW_COST:-true}
   LEADING_NEWLINE=${LEADING_NEWLINE:-false}
-  LAYOUT=${LAYOUT:-path branch commit pr ci model version vim agent | context quota cost}
+  LAYOUT=${LAYOUT:-path branch commit pr ci model version vim agent | context cache quota cost}
   BRANCH_MAX_CHARS=${BRANCH_MAX_CHARS:-25}
   PATH_SEGMENTS=${PATH_SEGMENTS:-2}
   PATH_LINK_TARGET=${PATH_LINK_TARGET:-finder}
@@ -253,9 +262,9 @@ select_preset() {
   local -a ppreviews=(
     "path | model"
     "path branch model | context cost"
-    "path branch pr model | context quota cost"
-    "path branch commit pr ci model vim | context quota cost"
-    "path branch commit pr ci model version vim agent | context quota cost"
+    "path branch pr model | context cache quota cost"
+    "path branch commit pr ci model vim | context cache quota cost"
+    "path branch commit pr ci model version vim agent | context cache quota cost"
     ""
   )
 
@@ -278,36 +287,36 @@ select_preset() {
       SHOW_BRANCH=false; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
       SHOW_COMMIT=false; SHOW_PR=false; SHOW_CI=false
       SHOW_MODEL=true; SHOW_VERSION=false
-      SHOW_CONTEXT=false; SHOW_QUOTA=false; SHOW_COST=false
+      SHOW_CONTEXT=false; SHOW_QUOTA=false; SHOW_CACHE=false; SHOW_COST=false
       LAYOUT='path | model'
       _preset_chosen=true ;;
     2) # Clean
       SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
       SHOW_COMMIT=false; SHOW_PR=false; SHOW_CI=false
       SHOW_MODEL=true; SHOW_VERSION=false
-      SHOW_CONTEXT=true; SHOW_QUOTA=false; SHOW_COST=true
+      SHOW_CONTEXT=true; SHOW_QUOTA=false; SHOW_CACHE=false; SHOW_COST=true
       LAYOUT='path branch model | context cost'
       _preset_chosen=true ;;
     3) # Standard
       SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=false
       SHOW_COMMIT=false; SHOW_PR=true; SHOW_CI=false
       SHOW_MODEL=true; SHOW_VERSION=false
-      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
-      LAYOUT='path branch pr model | context quota cost'
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_CACHE=true; SHOW_COST=true
+      LAYOUT='path branch pr model | context cache quota cost'
       _preset_chosen=true ;;
     4) # Developer
       SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=true
       SHOW_COMMIT=true; SHOW_PR=true; SHOW_CI=true
       SHOW_MODEL=true; SHOW_VERSION=false
-      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
-      LAYOUT='path branch commit pr ci model vim | context quota cost'
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_CACHE=true; SHOW_COST=true
+      LAYOUT='path branch commit pr ci model vim | context cache quota cost'
       _preset_chosen=true ;;
     5) # Full
       SHOW_BRANCH=true; SHOW_DIRTY=true; SHOW_AHEAD_BEHIND=true
       SHOW_COMMIT=true; SHOW_PR=true; SHOW_CI=true
       SHOW_MODEL=true; SHOW_VERSION=true
-      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_COST=true
-      LAYOUT='path branch commit pr ci model version vim agent | context quota cost'
+      SHOW_CONTEXT=true; SHOW_QUOTA=true; SHOW_CACHE=true; SHOW_COST=true
+      LAYOUT='path branch commit pr ci model version vim agent | context cache quota cost'
       _preset_chosen=true ;;
     6) # Custom — will run select_features + select_layout
       _preset_chosen=false ;;
@@ -357,6 +366,7 @@ select_features() {
     $'SHOW_VERSION\tClaude Code version → GitHub releases'
     $'SHOW_CONTEXT\tContext window percentage'
     $'SHOW_QUOTA\tQuota (5h + 7d usage)'
+    $'SHOW_CACHE\tPrompt cache (time to expiry + hit %)'
     $'SHOW_COST\tSession cost → transcript'
     $'LEADING_NEWLINE\tBlank line before statusline'
   )
@@ -531,7 +541,7 @@ _prev_layout() {
 # ── Layout selector ───────────────────────────────────────────────────────────
 select_layout() {
   printf '\n%s\n' "$(_bold 'Statusline layout:')"
-  printf '%s\n\n' "$(_dim 'Elements: path branch commit pr ci model version vim agent context quota cost  |=line break')"
+  printf '%s\n\n' "$(_dim 'Elements: path branch commit pr ci model version vim agent context cache quota cost  |=line break')"
 
   local -a plabels=(
     "Default    2 lines — git/model top, metrics bottom"
@@ -539,9 +549,9 @@ select_layout() {
     "Flipped    2 lines — metrics top, git/model bottom"
   )
   local -a pvalues=(
-    "path branch commit pr ci model version vim agent | context quota cost"
-    "path branch commit pr ci model version vim agent context quota cost"
-    "context quota cost | path branch commit pr ci model version vim agent"
+    "path branch commit pr ci model version vim agent | context cache quota cost"
+    "path branch commit pr ci model version vim agent context cache quota cost"
+    "context cache quota cost | path branch commit pr ci model version vim agent"
   )
 
   local cur="${LAYOUT:-${pvalues[0]}}"
@@ -560,7 +570,7 @@ select_layout() {
   local input
   read -r input </dev/tty || true
 
-  local _valid_elements="path branch commit pr ci model version vim agent context quota cost"
+  local _valid_elements="path branch commit pr ci model version vim agent context cache quota cost"
   case "$input" in
     1|2|3) LAYOUT="${pvalues[$(( input - 1 ))]}" ;;
     "")    ;; # keep
@@ -599,6 +609,7 @@ SHOW_MODEL=${SHOW_MODEL}
 SHOW_VERSION=${SHOW_VERSION}
 SHOW_CONTEXT=${SHOW_CONTEXT}
 SHOW_QUOTA=${SHOW_QUOTA}
+SHOW_CACHE=${SHOW_CACHE}
 SHOW_COST=${SHOW_COST}
 LEADING_NEWLINE=${LEADING_NEWLINE}
 LAYOUT='${LAYOUT}'
