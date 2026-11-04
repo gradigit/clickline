@@ -7,21 +7,24 @@ SHOW_BRANCH=true
 SHOW_DIRTY=true          # ·N modified/staged files shown after branch name
 SHOW_AHEAD_BEHIND=false  # ↑N ↓N commits ahead/behind remote (requires upstream)
 SHOW_COMMIT=false        # HEAD short hash → GitHub commit page
-SHOW_PR=true             # #N → open PR, or "New PR" → GitHub compare (requires gh)
+SHOW_PR=true             # #N → open PR (from Claude Code), or "New PR" → GitHub compare (requires gh)
 SHOW_CI=false            # ✓ ✗ ⋯ → GitHub Actions run (requires gh)
 SHOW_MODEL=true          # model name → Anthropic docs
 SHOW_VERSION=false       # Claude Code version → GitHub releases
 SHOW_CONTEXT=true        # context window percentage + max size
-SHOW_QUOTA=true          # 5h and 7d usage with time-until-reset
+SHOW_QUOTA=true          # 5h and 7d quota remaining with time-until-reset (whichever windows your plan has)
+SHOW_CACHE=true          # prompt cache: time until it goes cold + session hit %
 SHOW_COST=true           # session cost → transcript file
 LEADING_NEWLINE=false    # blank line before the statusline
-LAYOUT=path branch commit pr ci model version vim agent | context quota cost
+LAYOUT=path branch commit pr ci model version vim agent | context cache quota cost
 THEME=catppuccin-mocha   # color theme (see README for full list)
 
 # ── Options ───────────────────────────────────────────────────────────────────
 BRANCH_MAX_CHARS=25      # truncate branch names longer than this (appends …)
 PATH_SEGMENTS=2          # show last N path segments (e.g. project/src)
 PATH_LINK_TARGET=finder  # where Cmd+click on path opens: finder | vscode | cursor | none
+                         # (none also drops the transcript file:// link — use it over ssh/mosh)
 PR_CACHE_TTL=60          # seconds before PR cache is refreshed in background
 CI_CACHE_TTL=30          # seconds before CI cache is refreshed in background
 QUOTA_CACHE_TTL=60       # seconds before quota cache is refreshed in background
+                         # (only used by older Claude Code versions without rate_limits input)

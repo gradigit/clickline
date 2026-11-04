@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 — 2026-11-04
+
+- Status indicators (`cmd` / `condition`) are saved to the global file only; repo `.clickline` items are static links, since the statusline no longer runs commands from repo files
+
 ## 1.0.0 — 2026-02-20
 
 - Initial release

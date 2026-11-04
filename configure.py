@@ -134,6 +134,7 @@ BUILTINS: list[ElementDef] = [
     ElementDef("agent",   "Agent name",   "Sub-agent name (when agent is running)", "lavender",None, "", True),
     ElementDef("context", "Context %",    "Context window usage and max size",      "gold",    "SHOW_CONTEXT"),
     ElementDef("quota",   "Quota",        "5h + 7d usage with time-until-reset",    "green",   "SHOW_QUOTA"),
+    ElementDef("cache",   "Prompt cache", "Time until prompt cache expires + hit %", "green",  "SHOW_CACHE"),
     ElementDef("cost",    "Cost",         "Session cost → transcript file",         "gold",    "SHOW_COST"),
 ]
 BUILTIN_NAMES = {e.name for e in BUILTINS}
@@ -152,6 +153,7 @@ SAMPLES: dict[str, str] = {
     "agent":   "agent",
     "context": "45%/200K",
     "quota":   "82% · 45%",
+    "cache":   "cache 54m 97% hit",
     "cost":    "$4",
 }
 
@@ -164,7 +166,7 @@ PRESETS: dict[str, dict] = {
             "SHOW_BRANCH": False, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
             "SHOW_COMMIT": False, "SHOW_PR": False, "SHOW_CI": False,
             "SHOW_MODEL": True, "SHOW_VERSION": False,
-            "SHOW_CONTEXT": False, "SHOW_QUOTA": False, "SHOW_COST": False,
+            "SHOW_CONTEXT": False, "SHOW_QUOTA": False, "SHOW_CACHE": False, "SHOW_COST": False,
         },
     },
     "Clean": {
@@ -174,43 +176,43 @@ PRESETS: dict[str, dict] = {
             "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
             "SHOW_COMMIT": False, "SHOW_PR": False, "SHOW_CI": False,
             "SHOW_MODEL": True, "SHOW_VERSION": False,
-            "SHOW_CONTEXT": True, "SHOW_QUOTA": False, "SHOW_COST": True,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": False, "SHOW_CACHE": False, "SHOW_COST": True,
         },
     },
     "Standard": {
         "desc": "Recommended default",
-        "layout": ["path", "branch", "pr", "model", LINEBREAK, "context", "quota", "cost"],
+        "layout": ["path", "branch", "pr", "model", LINEBREAK, "context", "cache", "quota", "cost"],
         "flags": {
             "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
             "SHOW_COMMIT": False, "SHOW_PR": True, "SHOW_CI": False,
             "SHOW_MODEL": True, "SHOW_VERSION": False,
-            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_CACHE": True, "SHOW_COST": True,
         },
     },
     "Developer": {
         "desc": "Git + CI + vim details",
         "layout": [
             "path", "branch", "commit", "pr", "ci", "model", "vim",
-            LINEBREAK, "context", "quota", "cost",
+            LINEBREAK, "context", "cache", "quota", "cost",
         ],
         "flags": {
             "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": True,
             "SHOW_COMMIT": True, "SHOW_PR": True, "SHOW_CI": True,
             "SHOW_MODEL": True, "SHOW_VERSION": False,
-            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_CACHE": True, "SHOW_COST": True,
         },
     },
     "Full": {
         "desc": "Everything enabled",
         "layout": [
             "path", "branch", "commit", "pr", "ci", "model", "version", "vim", "agent",
-            LINEBREAK, "context", "quota", "cost",
+            LINEBREAK, "context", "cache", "quota", "cost",
         ],
         "flags": {
             "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": True,
             "SHOW_COMMIT": True, "SHOW_PR": True, "SHOW_CI": True,
             "SHOW_MODEL": True, "SHOW_VERSION": True,
-            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_COST": True,
+            "SHOW_CONTEXT": True, "SHOW_QUOTA": True, "SHOW_CACHE": True, "SHOW_COST": True,
         },
     },
 }
@@ -235,14 +237,14 @@ class Config:
         "SHOW_BRANCH": True, "SHOW_DIRTY": True, "SHOW_AHEAD_BEHIND": False,
         "SHOW_COMMIT": False, "SHOW_PR": True, "SHOW_CI": False,
         "SHOW_MODEL": True, "SHOW_VERSION": False, "SHOW_CONTEXT": True,
-        "SHOW_QUOTA": True, "SHOW_COST": True,
+        "SHOW_QUOTA": True, "SHOW_CACHE": True, "SHOW_COST": True,
     })
     leading_newline:  bool = False
     theme:            str  = "catppuccin-mocha"
     layout:           list[str] = field(default_factory=lambda: [
         "path", "branch", "commit", "pr", "ci", "model", "version", "vim", "agent",
         LINEBREAK,
-        "context", "quota", "cost",
+        "context", "cache", "quota", "cost",
     ])
     branch_max_chars: int  = 25
     path_segments:    int  = 2
@@ -766,8 +768,11 @@ class CustomItemDialog(Container):
         yield Input(placeholder="e.g. kube-ctx",  id="ci-name")
         yield Label("Display label:")
         yield Input(placeholder="e.g. ⎈ k8s-prod", id="ci-label")
-        yield Label("Shell command (optional — output used as label):")
-        yield Input(placeholder="e.g. kubectl config current-context", id="ci-cmd")
+        if not self._repo:
+            # Repo (.clickline) items are static: the statusline ignores cmd
+            # there, since running commands from a repo file is unsafe.
+            yield Label("Shell command (optional — output used as label):")
+            yield Input(placeholder="e.g. kubectl config current-context", id="ci-cmd")
         yield Label("Color (sapphire/lavender/mauve/gold/green/peach/red/dim):")
         yield Input(placeholder="dim", id="ci-color")
         yield Label("Link URL (optional, may contain {dir} {branch}):")
@@ -781,7 +786,7 @@ class CustomItemDialog(Container):
         name  = self.query_one("#ci-name",  Input).value.strip()
         label = self.query_one("#ci-label", Input).value.strip()
         color = self.query_one("#ci-color", Input).value.strip() or "dim"
-        cmd   = self.query_one("#ci-cmd",   Input).value.strip()
+        cmd   = "" if self._repo else self.query_one("#ci-cmd", Input).value.strip()
         link  = self.query_one("#ci-link",  Input).value.strip()
         if not name or not name.replace("-", "").replace("_", "").isalnum():
             self.query_one("#ci-name", Input).focus()

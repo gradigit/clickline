@@ -94,31 +94,31 @@ Note: a 5th preset "Full" exists (adds version + agent to Developer) — if the 
 Minimal:
   LAYOUT='path | model'
   SHOW_BRANCH=false SHOW_PR=false SHOW_CI=false SHOW_CONTEXT=false
-  SHOW_QUOTA=false SHOW_COST=false SHOW_MODEL=true SHOW_COMMIT=false
+  SHOW_QUOTA=false SHOW_CACHE=false SHOW_COST=false SHOW_MODEL=true SHOW_COMMIT=false
   SHOW_VERSION=false SHOW_DIRTY=true SHOW_AHEAD_BEHIND=false
 
 Clean:
   LAYOUT='path branch model | context cost'
   SHOW_BRANCH=true SHOW_PR=false SHOW_CI=false SHOW_CONTEXT=true
-  SHOW_QUOTA=false SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=false
+  SHOW_QUOTA=false SHOW_CACHE=false SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=false
   SHOW_VERSION=false SHOW_DIRTY=true SHOW_AHEAD_BEHIND=false
 
 Standard:
-  LAYOUT='path branch pr model | context quota cost'
+  LAYOUT='path branch pr model | context cache quota cost'
   SHOW_BRANCH=true SHOW_PR=true SHOW_CI=false SHOW_CONTEXT=true
-  SHOW_QUOTA=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=false
+  SHOW_QUOTA=true SHOW_CACHE=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=false
   SHOW_VERSION=false SHOW_DIRTY=true SHOW_AHEAD_BEHIND=false
 
 Developer:
-  LAYOUT='path branch commit pr ci model vim | context quota cost'
+  LAYOUT='path branch commit pr ci model vim | context cache quota cost'
   SHOW_BRANCH=true SHOW_PR=true SHOW_CI=true SHOW_CONTEXT=true
-  SHOW_QUOTA=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=true
+  SHOW_QUOTA=true SHOW_CACHE=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=true
   SHOW_VERSION=false SHOW_DIRTY=true SHOW_AHEAD_BEHIND=true
 
 Full:
-  LAYOUT='path branch commit pr ci model version vim agent | context quota cost'
+  LAYOUT='path branch commit pr ci model version vim agent | context cache quota cost'
   SHOW_BRANCH=true SHOW_PR=true SHOW_CI=true SHOW_CONTEXT=true
-  SHOW_QUOTA=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=true
+  SHOW_QUOTA=true SHOW_CACHE=true SHOW_COST=true SHOW_MODEL=true SHOW_COMMIT=true
   SHOW_VERSION=true SHOW_DIRTY=true SHOW_AHEAD_BEHIND=true
 ```
 
