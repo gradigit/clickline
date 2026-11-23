@@ -49,7 +49,8 @@ NOW=$(date +%s)
 T() { echo $(( $(date +%s) + $1 )); }   # fresh timestamp: time checks keep a margin
 # render <dir> <extra jq object merged into the input>
 render() {
-  local dir="$1" extra="${2:-{\}}"
+  local dir="$1" extra="${2-}"
+  [ -n "$extra" ] || extra='{}'   # "${2:-{\}}" yields "{\}" on bash 3.2
   jq -n --arg dir "$dir" --argjson extra "$extra" '{
     model: {display_name: "Test Model", id: "test"},
     workspace: {current_dir: $dir},
@@ -83,13 +84,20 @@ check "window past its reset shows no countdown" "$out" "(" absent
 check_eq "stdin quota makes no API call" "$(calls curl)" "0"
 
 # ── Quota shared across sessions ─────────────────────────────────────────────
-W1=$((NOW+300000)); W2=$((NOW+900000))
+W1=$((NOW+300000)); W2=$((NOW+500000))
 render "$PLAIN" "{\"rate_limits\":{\"seven_day\":{\"used_percentage\":50,\"resets_at\":$W1}}}" >/dev/null
 out=$(render "$PLAIN" "{\"rate_limits\":{\"seven_day\":{\"used_percentage\":30,\"resets_at\":$W1}}}")
 check "idle session shows the highest usage seen in the window" "$out" "50%"
 render "$PLAIN" "{\"rate_limits\":{\"seven_day\":{\"used_percentage\":5,\"resets_at\":$W2}}}" >/dev/null
 out=$(render "$PLAIN" "{\"rate_limits\":{\"seven_day\":{\"used_percentage\":50,\"resets_at\":$W1}}}")
 check "session from an older window shows the newer window" "$out" "95%"
+printf '%s 41\n' "$((NOW+604800+7200))" > "$CLICKLINE_TMP_DIR/.clickline-quota-7d"   # impossible reset time
+out=$(render "$PLAIN" "{\"rate_limits\":{\"seven_day\":{\"used_percentage\":85,\"resets_at\":$W1}}}")
+check "saved reset beyond the window is ignored" "$out" "15%"
+check_eq "bad saved reset is replaced" "$(cat "$CLICKLINE_TMP_DIR/.clickline-quota-7d")" "$W1 85"
+printf '%s 41\n' "$((NOW+18000+7200))" > "$CLICKLINE_TMP_DIR/.clickline-quota-5h"
+out=$(render "$PLAIN" "{\"rate_limits\":{\"five_hour\":{\"used_percentage\":20,\"resets_at\":$(T 3600)}}}")
+check "saved 5h reset beyond the window is ignored" "$out" "80%"
 
 # ── Quota fallback (no rate_limits): throttled, backs off ────────────────────
 rm -f "$CLICKLINE_TMP_DIR"/.clickline-quota-*

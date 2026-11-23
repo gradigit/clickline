@@ -74,13 +74,20 @@ seven_day_reset=""
 # Each session only knows the quota as of its own last API response, so idle
 # sessions lag behind. Usage within a window only grows, so share the highest
 # value seen for the same window (same resets_at) across all sessions.
-# Usage: _quota_share <tag> <used> <resets_at>   → prints "<used> <resets_at>"
+# Usage: _quota_share <tag> <used> <resets_at> <window seconds>
+#        → prints "<used> <resets_at>"
 _quota_share() {
   local f="$CL_TMP/.clickline-quota-$1" used="$2" reset="$3" s_reset=0 s_used=0
   case "$reset" in ''|*[!0-9]*) printf '%s %s' "$used" "$reset"; return ;; esac
   [ -f "$f" ] && read -r s_reset s_used < "$f"
   case "$s_reset" in ''|*[!0-9]*) s_reset=0 ;; esac
   case "$s_used" in ''|*[!0-9]*) s_used=0 ;; esac
+  # A window resets at most one window length from now (plus an hour for
+  # clock skew). A saved reset later than that is bad data (e.g. a test
+  # fixture), and since the latest reset wins it would otherwise stick forever.
+  if [ "$s_reset" -gt $(( now_epoch + $4 + 3600 )) ]; then
+    s_reset=0; s_used=0
+  fi
   if [ "$s_reset" -gt "$reset" ]; then
     used=$s_used; reset=$s_reset        # this session's data predates the current window
   elif [ "$s_reset" -eq "$reset" ] && [ "$s_used" -gt "$used" ]; then
@@ -94,8 +101,8 @@ _quota_share() {
 
 if [ "${SHOW_QUOTA:-true}" = "true" ] && { [ -n "$in_5h_used" ] || [ -n "$in_7d_used" ]; }; then
   # Either window may be absent (e.g. plans without a 5-hour limit)
-  [ -n "$in_5h_used" ] && read -r five_hr_used five_hr_reset <<< "$(_quota_share 5h "$in_5h_used" "$in_5h_reset")"
-  [ -n "$in_7d_used" ] && read -r seven_day_used seven_day_reset <<< "$(_quota_share 7d "$in_7d_used" "$in_7d_reset")"
+  [ -n "$in_5h_used" ] && read -r five_hr_used five_hr_reset <<< "$(_quota_share 5h "$in_5h_used" "$in_5h_reset" 18000)"
+  [ -n "$in_7d_used" ] && read -r seven_day_used seven_day_reset <<< "$(_quota_share 7d "$in_7d_used" "$in_7d_reset" 604800)"
 elif [ "${SHOW_QUOTA:-true}" = "true" ]; then
   QUOTA_ATTEMPT="$CL_TMP/.claude-usage-attempt"
   _fetch_usage() {
